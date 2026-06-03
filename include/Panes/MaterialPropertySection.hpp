@@ -35,7 +35,7 @@ std::unique_ptr<QVBoxLayout> vlayout;
 
 std::unique_ptr<QCheckBox> pbr_check_box;
 
-std::unique_ptr<QCheckBox> convertbox;
+
 
 std::unique_ptr<QComboBox> shaderTypeCombox;
 
@@ -82,10 +82,10 @@ MaterialPropertySection(const QString& pSecName,QWidget* parent):Section(pSecNam
     vlayout->addLayout(flayout.get());
     
     pbr_check_box.reset(new QCheckBox(tr("Enable PBR"),this));
-    convertbox=std::make_unique<QCheckBox>(tr("Convert To Node"),this);
+    
 
     vlayout->addWidget(pbr_check_box.get());
-    vlayout->addWidget(convertbox.get());
+   
     setContentLayout(*vlayout.get());
     
 }
@@ -360,9 +360,7 @@ QCheckBox* pbrCheckBox() const{
 QComboBox* ShaderTypeComboBox() const{
   return shaderTypeCombox.get();
 }
-QCheckBox* ConvertBox() const{
-  return convertbox.get();
-}
+
 Graphic3d_MaterialAspect OutputMaterial() const{
   return outputMaterial;
 }

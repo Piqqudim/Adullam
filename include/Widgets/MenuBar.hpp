@@ -4,7 +4,6 @@
 #include<QtWidgets/QWidget>
 //This will contain all items on the menubar, File, Edit,
 class MenuBar:public QMenuBar{
-Q_OBJECT
 size_t MenuBarItemNum;
 public:
 MenuBar(QWidget* widget):QMenuBar(widget){  

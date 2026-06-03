@@ -8,7 +8,7 @@
 #include"DockWidget.hpp"
 #include"DrawingCentralWidget.hpp"
 #include<TabWidget.hpp>
-#include"MenuBar.hpp"
+
 #include<QtGui/QAction>
 #include<memory>
 #include<QStatusBar>
@@ -29,6 +29,7 @@
 #include<QtWidgets/QFileDialog>
 #include<EditorMenu.hpp>
 #include<QtWidgets/QApplication>
+#include<QtWidgets/QMenubar>
 #include<QtGui/QClipboard>
 #include<iostream>
 #include<EdgeInfoWidget.hpp>
@@ -40,7 +41,7 @@ class Window_Frame:public QMainWindow{
     std::unique_ptr<DockWidget> dockwidget_1;  //First dockwidget that will be placed at the right
     std::unique_ptr<DockWidget> dockwidget_2;   
     std::unique_ptr<DrawingCentralWidget> centralwidget_1;  //we named it 1,because we can have more than one central widget in the future
-    std::unique_ptr<MenuBar> menubar;
+    std::unique_ptr<QMenuBar> menubar;
     std::unique_ptr<QAction> FileAction;
     std::unique_ptr<QAction> ModelAction;
     std::unique_ptr<QAction> ModifyMenuAction;
@@ -1847,6 +1848,26 @@ void OnHandleEdgeInfo(const EdgeInfo& edgeinfo){
   return;
 }
 void OnHandleSurfaceInfo(const SurfaceInfo& surfaceinfo){
+  return;
+}
+void OnHandleMaterialNode(bool value){
+  if(value){
+   nodewidget->nodeShapeMaterial=objprswidget->material();
+  nodewidget->shapedraw=SP_MATNODE;
+  }
+  else{
+    nodewidget->shapedraw=SP_NULL;
+    
+  }
+  return;
+}
+void OnHandleEmitMaterial(){
+    nodewidget->nodeShapeMaterial=centralwidget_1->chosenShapeMaterial;
+    nodewidget->shapedraw=SP_MATNODE;
+  return;
+}
+void OnHandleUnEmitMaterial(){
+   nodewidget->shapedraw=SP_NULL;
   return;
 }
 };

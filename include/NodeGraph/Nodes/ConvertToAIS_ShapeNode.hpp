@@ -81,7 +81,9 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
     }
     if(m_outdata){
           if(outputShape){
-            outputShape->SetShape(Shape);
+            outputShape.Nullify();
+            outputShape=new CustomAIS_Shape(Shape);
+           
           }
         m_outdata->Nullify();
         if(m_inputdata.lock()->HasMaterial()){

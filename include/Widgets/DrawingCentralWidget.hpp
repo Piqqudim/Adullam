@@ -94,6 +94,10 @@
 #include<Geom_Axis1Placement.hxx>
 #include<EdgeUtility.hpp>
 #include<DrawLineDialog.hpp>
+#include<GC_MakeCircle.hxx>
+#include<DrawPolygonDialog.hpp>
+#include<FilletDialog.hpp>
+#include<ChamferDialog.hpp>
 //This file will enter 10,000 LOC
 //We have to create a dialog for viewport setting,Drawing widget is also a viewport
 //On Object Creation,deletion,editing,Transform
@@ -119,7 +123,8 @@ DC_LINE,
 DC_CIRCLE,
 DC_SPLINE,
 DC_BEZIER,
-DC_ARC
+DC_ARC,
+DC_POLYGON
 };
 enum GP_STATE{
  GPS_GATHER,
@@ -134,7 +139,9 @@ CE_EDGE,
 CE_FACE,
 CE_SHAPE,
 CE_POINT,
-CE_AXIS
+CE_AXIS,
+CE_CHAMFER, //for 2d
+CE_FILLET //for 2d
 };
 class DrawingCentralWidget:public QWidget{
 private:
@@ -204,7 +211,11 @@ std::unique_ptr<QAction> deleteAxisObject=std::make_unique<QAction>(tr("Delete")
 std::unique_ptr<QAction> faceNormalAction=std::make_unique<QAction>(tr("Assume Face Centre Normal"));
 std::unique_ptr<QAction> convertFacePointAction=std::make_unique<QAction>(tr("Convert To Point Node"));
 std::unique_ptr<QAction> drawAction=std::make_unique<QAction>(tr("Draw Line"));
-
+std::unique_ptr<QAction> circleDraw=std::make_unique<QAction>(tr("Draw Circle"));
+std::unique_ptr<DrawCircleMenu> drawCircle=std::make_unique<DrawCircleMenu>();
+std::unique_ptr<DrawPolygonDialog> drawPolygonDialog=std::make_unique<DrawPolygonDialog>();
+std::unique_ptr<ChamferDialog> chamferDialog;
+std::unique_ptr<FilletDialog> filletDialog;
 std::unique_ptr<FaceMenu> faceMenu;
 std::unique_ptr<EdgeMenu> edgeMenu; 
 std::unique_ptr<PolygonMenu> polyMenu;
@@ -214,18 +225,25 @@ std::unique_ptr<QAction> convertPoint=std::make_unique<QAction>(tr("Convert To P
 std::unique_ptr<QAction> copyScaleAction=std::make_unique<QAction>(tr("Copy Scale"),nullptr);
 std::unique_ptr<QAction> copyRotationAction=std::make_unique<QAction>(tr("Copy Rotation"),nullptr);
 std::unique_ptr<QAction> copyTranslationAction=std::make_unique<QAction>(tr("Copy Translation"),nullptr);
+std::unique_ptr<QAction> polygonAction=std::make_unique<QAction>(tr("Draw Polygon"));
+std::unique_ptr<QAction> copyMaterial=std::make_unique<QAction>(tr("Convert To Material Node"));
 std::unique_ptr<TransientPolygon> transPolygon;
 std::unique_ptr<TransientBezierCurve> transCurve;
 std::unique_ptr<TransientBSplineCurve> bspCurve;
 std::unique_ptr<BezierMenu> bMenu;
 std::unique_ptr<BSplineMenu> spMenu;
 std::unique_ptr<AxisMenu> axisMenu;
+std::unique_ptr<DrawPolygonMenu> drawPolyMenu=std::make_unique<DrawPolygonMenu>();
+std::unique_ptr<ApplyChamferMenu> chamferMenu=std::make_unique<ApplyChamferMenu>();
+std::unique_ptr<ApplyFilletMenu> filletMenu=std::make_unique<ApplyFilletMenu>();
 bool IsShapePrsAdded=false;   //this is to keep track of whether shape presentation menu item has been added
  TopoDS_Face selFace;
  TopoDS_Edge selEdge;
 QAction* LinePrsAction=nullptr;
 bool IsLinePrsAdded=false;  //thus is to keep track of whether lineprsaction is added to SelectedMenu or not
-
+gp_Pnt CircleFirstPoint;
+gp_Pnt CircleSecondPoint;
+gp_Pnt CircleThirdPoint;
 TopoDS_Shape SelectedShape;
 QMenu* DockMenus=nullptr;
 QAction* showSettingAction=nullptr;
@@ -262,7 +280,7 @@ Handle(CustomAIS_Shape) prevCurrentObject;
 Handle(CustomAIS_Shape) currentObject;   //this is used when a node is clicked,it will store the object 
 Handle(AIS_Axis) AxisObject;
 Quantity_Color currentObjectColor;
-
+std::vector<Handle(CustomAIS_Shape)> collectedLines;  //these are the lines that are collected when constructing a polygon
 
 Handle(CustomAIS_Shape) emittedShape;  //this is to select subshapes of a shape
 Handle(CustomAIS_Shape) prevEmittedShape;
@@ -303,8 +321,9 @@ gp_Trsf CurrTrsf;
 gp_Trsf SentTransform;  //this is the transform that is sent from drawing widget to nodegraph
 size_t objectCount=0;
 std::unordered_map<size_t,Handle(CustomAIS_Shape)> Shapes;
-std::unordered_map<size_t,Handle(AIS_InteractiveObject)> DraftShapes; //for every 2d shapes that will be rendered in the scene...
+std::unordered_map<size_t,Handle(AIS_Shape)> DraftShapes; //for every 2d shapes that will be rendered in the scene...
 Graphic3d_MaterialAspect prevChosenMat;
+Graphic3d_MaterialAspect chosenShapeMaterial;
 size_t ChosenId=0;
 
 int faceIndex=-1; //invalid index
@@ -322,6 +341,10 @@ TopoDS_Face surfaceWidgetFace;
 TopoDS_Face convertedEdgeFace;
 TopoDS_Shape SentShape=TopoDS_Shape();
 TopoDS_Shape selFaceShape=TopoDS_Shape();
+TopoDS_Wire loopwire=TopoDS_Wire();
+TopoDS_Edge chamferEdge=TopoDS_Edge();
+TopoDS_Vertex chamferVertex=TopoDS_Vertex();
+TopoDS_Vertex filletVertex=TopoDS_Vertex();
 int mainIndex=-1;
 int subMainIndex=-1;
 int SentShapeId=-1;
@@ -354,7 +377,8 @@ DrawingCentralWidget(QWidget* parent_widget):QWidget(parent_widget){
     axisMenu->addAction(deleteAxisObject.get());
     AxisObject=new AIS_Axis(new Geom_Axis1Placement(gp_Pnt(0.0,0.0,0.0),gp_Dir(0.0,1.0,0.0)));
     SelectAction=new QAction(tr("Select"),nullptr); 
-   
+    filletDialog=make_unique<FilletDialog>();
+    chamferDialog=make_unique<ChamferDialog>();
     UndoAction=UndoStack->createUndoAction(this,tr("&Undo"));
 
     RedoAction=UndoStack->createRedoAction(this,tr("&Redo"));
@@ -417,6 +441,8 @@ DrawingCentralWidget(QWidget* parent_widget):QWidget(parent_widget){
     SelectedMenu->addAction(copyRotationAction.get());
     SelectedMenu->addAction(copyTranslationAction.get());
     SelectedMenu->addAction(CheckShapeIdAction.get());
+    copyMaterial->setCheckable(true);
+    SelectedMenu->addAction(copyMaterial.get());
     shouldSetAction->setCheckable(true);
    polyMenu=std::make_unique<PolygonMenu>();
     pointMenu->addAction(convertPoint.get());
@@ -432,6 +458,9 @@ DrawingCentralWidget(QWidget* parent_widget):QWidget(parent_widget){
     GatherCurveAction->setCheckable(true);
     GatherBSplineAction=make_unique<QAction>(tr("Gather BSPline Points"),nullptr);
     GatherBSplineAction->setCheckable(true);
+    polygonAction->setCheckable(true);
+    
+    
     DockMenus->addAction(showSettingAction);
     DockMenus->addAction(UndoAction);
     DockMenus->addAction(RedoAction);
@@ -439,6 +468,8 @@ DrawingCentralWidget(QWidget* parent_widget):QWidget(parent_widget){
     DockMenus->addAction(convertPointAction.get());
     DockMenus->addAction(refreshAction.get());
     DockMenus->addAction(drawAction.get());
+    DockMenus->addAction(circleDraw.get());
+    DockMenus->addAction(polygonAction.get());
     DockMenus->addAction(GatherPointAction.get());
     DockMenus->addAction(GatherCurveAction.get());
     DockMenus->addAction(GatherBSplineAction.get());
@@ -536,6 +567,35 @@ view->MustBeResized();
  connect(drawLineMenu->drawLineAction.get(),&QAction::triggered,this,&DrawingCentralWidget::InitializeDrawDialog);
  connect(drawLineMenu->stopLineAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnStopDrawingLine);
  connect(drawLineDialog.get(),&DrawLineDialog::OnEmitDone,this,&DrawingCentralWidget::OnHandleDone);
+ connect(drawCircle->firstPoint.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleFirstPoint);
+ connect(drawCircle->secondPoint.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleSecondPoint);
+ connect(drawCircle->thirdPoint.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleThirdPoint);
+ connect(drawCircle->stopCircle.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleStopCircle);
+ connect(circleDraw.get(),&QAction::triggered,this,&DrawingCentralWidget::InitCircleDraw);
+ connect(drawCircle->destroyCircleOps.get(),&QAction::triggered,this,&DrawingCentralWidget::OnDestroyCircle);
+ connect(drawPolygonDialog.get(),&DrawPolygonDialog::OnPolygonDone,this,&DrawingCentralWidget::OnHandlePolygonDone);
+ connect(drawPolyMenu->startPolygonAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnInitDrawPolygon);
+ connect(drawPolyMenu->continueAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnContinuePolygon);
+ connect(drawPolyMenu->endPolygonAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnEndPolygon);
+ connect(drawPolyMenu->closeAction.get(),&QAction::triggered,this,&DrawingCentralWidget::ClosePolygon);
+ connect(drawPolyMenu->convertToWireAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnConvertPolygonToWire);
+ connect(drawPolyMenu->convertToFaceAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnConvertToFace);
+ connect(polygonAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnStartPolygon);
+ connect(faceMenu->applyChamfer.get(),&QAction::toggled,this,&DrawingCentralWidget::OnApplyChamfer);
+ connect(faceMenu->applyFillet.get(),&QAction::toggled,this,&DrawingCentralWidget::OnApplyFillet);
+ connect(chamferMenu->chooseVertexAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnChooseChamferVertex);
+ connect(filletMenu->chooseVertexAction.get(),&QAction::toggled,this,&DrawingCentralWidget:: OnChooseFilletVertex);
+ connect(chamferMenu->chooseEdgeAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnChooseEdgeForChamfer);
+ connect(filletMenu->SelectRadiusAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnSelectRadiusForFillet);
+ connect(chamferMenu->SelectOthersAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnSelectOthersForChamfer);
+ connect(filletMenu->BuildFilletAction.get(),&QAction::triggered,this,&DrawingCentralWidget::BuildFillet);
+ connect(chamferMenu->BuildAction.get(),&QAction::triggered,this,&DrawingCentralWidget::BuildChamfer);
+ connect(chamferMenu->endChamferOps.get(),&QAction::triggered,this,&DrawingCentralWidget::EndChamfer);
+ connect(filletMenu->endFilletOps.get(),&QAction::triggered,this,&DrawingCentralWidget::EndFillet); 
+ connect(copyMaterial.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleCopyMaterial);
+ 
+
+
 }
 
 void OnHighlight(Handle(CustomAIS_Shape)& cshape,const TopoDS_Shape& selshape,const int& mode){
@@ -1408,11 +1468,37 @@ void mousePressEvent(QMouseEvent* event) override{
         using surfaceWidgetShape
         
         */
+       if(dc==DC_POLYGON){
+        double projX,projY,projZ=0.0;
+         view->ConvertToGrid(static_cast<int>(std::lround(event->pos().x()*dpr)),static_cast<int>(std::lround(event->pos().y()*dpr)),projX,projY,projZ);
+        LineStartPoint=gp_Pnt(projX,projY,projZ);
+        return;
+       }
        if(dc==DC_LINE){
         double projX,projY,projZ=0.0;
          view->ConvertToGrid(static_cast<int>(std::lround(event->pos().x()*dpr)),static_cast<int>(std::lround(event->pos().y()*dpr)),projX,projY,projZ);
         LineStartPoint=gp_Pnt(projX,projY,projZ);
         return;
+       }
+       if(dc==DC_CIRCLE){
+        if(drawCircle->firstPoint->isChecked()){
+         double projX,projY,projZ=0.0;
+         view->ConvertToGrid(static_cast<int>(std::lround(event->pos().x()*dpr)),static_cast<int>(std::lround(event->pos().y()*dpr)),projX,projY,projZ);
+        CircleFirstPoint=gp_Pnt(projX,projY,projZ);
+        return;
+        }
+        if(drawCircle->secondPoint->isChecked()){
+          double projX,projY,projZ=0.0;
+         view->ConvertToGrid(static_cast<int>(std::lround(event->pos().x()*dpr)),static_cast<int>(std::lround(event->pos().y()*dpr)),projX,projY,projZ);
+        CircleSecondPoint=gp_Pnt(projX,projY,projZ);
+        return;
+        }
+        if(drawCircle->thirdPoint->isChecked()){
+           double projX,projY,projZ=0.0;
+         view->ConvertToGrid(static_cast<int>(std::lround(event->pos().x()*dpr)),static_cast<int>(std::lround(event->pos().y()*dpr)),projX,projY,projZ);
+        CircleThirdPoint=gp_Pnt(projX,projY,projZ);
+        return;
+        }
        }
       if(gpsstate==GPS_BSPLINE){
         LoadMessage(tr("B Spline Status"),tr("Spline In Progress"));
@@ -1484,7 +1570,47 @@ void mousePressEvent(QMouseEvent* event) override{
     
     context->InitSelected();
     while(context->MoreSelected()){
-     
+     if(CurrentSelMode==1){
+        Handle(SelectMgr_EntityOwner) owner=context->SelectedOwner();
+        if(!owner){
+          LoadMessage(tr(""),tr("Failed To Cast to Point"));
+          return;
+        }
+        Handle(StdSelect_BRepOwner) entity=Handle(StdSelect_BRepOwner)::DownCast(owner);
+         if(!entity){
+          LoadMessage(tr(""),tr("Failed To Cast to Point"));
+          return;
+        }
+      TopoDS_Shape vertexShape=entity->Shape();
+      if(vertexShape.ShapeType()==TopAbs_VERTEX){
+        TopoDS_Vertex vertex=TopoDS::Vertex(vertexShape);
+        if(vertex.IsNull()){
+          LoadMessage(tr(""),tr("Failed to cast to an object of TopoDS_Vertex"));
+          return;
+        }
+        chamferVertex=vertex;
+        filletVertex=vertex;
+        auto pnt=context->MainSelector()->PickedPoint(1);
+        if(!pointMarker){
+        pointMarker=new AIS_Point(new Geom_CartesianPoint(0.0,0.0,0.0));
+        pointMarker->SetColor(Quantity_NOC_PERU);
+        pointMarker->SetMarker(Aspect_TOM_O);
+      }
+      LineStartPoint=pnt;
+      Handle(Geom_Point) geom_pnt=new Geom_CartesianPoint(pnt.X(),pnt.Y(),pnt.Z());
+      pointMarker->SetComponent(geom_pnt);
+
+      }
+      if(context->IsDisplayed(pointMarker)){
+         context->Remove(pointMarker,true);
+         context->Display(pointMarker,true); 
+      }
+      else{
+      context->Display(pointMarker,true);
+      }
+      LoadMessage(tr(""),tr("Successful Casting"));
+        return;
+     }
      if(CurrentSelMode==4){  //When currentSelMode is 4
        
         UnHighlight(selShape,PrevSelMode);
@@ -1530,7 +1656,7 @@ void mousePressEvent(QMouseEvent* event) override{
        
        gp_Pnt selectedPoint=context->MainSelector()->PickedPoint(1);
        selFacePoint=selectedPoint;
-      
+       LineStartPoint=selectedPoint;
         int_x=selectedPoint.X();
         int_y=selectedPoint.Y();
         int_z=selectedPoint.Z();
@@ -1612,8 +1738,10 @@ void mousePressEvent(QMouseEvent* event) override{
             return;
         }
         selFaceShape=selectedEntity->Shape();
+        chamferEdge=TopoDS::Edge(selectedEntity->Shape());
         st1=EDGE_SELECT;
          gp_Pnt selectedPoint=context->MainSelector()->PickedPoint(1);
+         LineStartPoint=selectedPoint;
          int_x=selectedPoint.X();
          int_y=selectedPoint.Y();
          int_z=selectedPoint.Z();
@@ -1704,8 +1832,24 @@ void mousePressEvent(QMouseEvent* event) override{
    
 
 else if(event->button()==Qt::RightButton){
+  if(cm==CE_CHAMFER){
+    chamferMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
+  if(cm==CE_FILLET){
+    filletMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
+  if(dc==DC_POLYGON){
+    drawPolyMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
   if(dc==DC_LINE){
     drawLineMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
+  if(dc==DC_CIRCLE){
+    drawCircle->exec(event->globalPosition().toPoint());
     return;
   }
    if(cm==CE_AXIS){
@@ -2035,6 +2179,8 @@ signals:
   void OnEmitPointCollections(const NCollection_Array1<gp_Pnt>& pnts);
   void OnEmitEdgeInfo(const EdgeInfo& edgeinfo);
   void OnEmitSurfaceInfo(const SurfaceInfo& surfaceinfo);
+  void EmitMaterial();
+  void UnEmitMaterial();
 public slots:
 //This returns the top view
 void SetDrawCircleAction(bool toggled){
@@ -2689,6 +2835,364 @@ void OnHandleDone(){
   view->Redraw();
   return;
 }
+void OnHandleFirstPoint(bool value){
+  if(value){
+    LoadMessage(tr(""),tr("Choose thie first point of the circle"));
+    drawCircle->SetThreeValues(value,false,false);
+  }
+  return;
+}
+void OnHandleSecondPoint(bool value){
+  if(value){
+    LoadMessage(tr(""),tr("Choose the second point of the circle,this second point is the centre of the circle"));
+    drawCircle->SetThreeValues(false,value,false);
+  }
+  return;
+}
+void OnHandleThirdPoint(bool value){
+  if(value){
+    LoadMessage(tr(""),tr("Choose the third point of the circle"));
+    drawCircle->SetThreeValues(false,false,value);
+  }
+  return;
+}
+void OnHandleStopCircle(){
+  dc=DC_NULL;
+  drawCircle->SetThreeValues(false,false,false);
+  GC_MakeCircle circleMaker(CircleFirstPoint,CircleSecondPoint,CircleThirdPoint);
+  
+  Handle(Geom_Circle) geom_circle=circleMaker.Value();
+  if(!geom_circle){
+    LoadMessage(tr(""),tr("Failed to create a circle"));
+  }
+  BRepBuilderAPI_MakeEdge edgeMaker(geom_circle);
+  TopoDS_Edge edge=TopoDS_Edge();
+  if(edgeMaker.IsDone()){
+    edge=edgeMaker.Edge();
+  }
+  else{
+    LoadMessage(tr(""),tr("Failed to create an edge"));
+    return;
+  }
+  Handle(CustomAIS_Shape) edgeShape=new CustomAIS_Shape(edge);
+  context->Display(edgeShape,false);
+  view->Redraw();
+  return;
+
+}
+void InitCircleDraw(){
+  dc=DC_CIRCLE;
+  return;
+}
+void OnDestroyCircle(){
+  drawCircle->SetThreeValues(false,false,false);
+  dc=DC_NULL;
+  return;
+}
+void OnInitDrawPolygon(){
+  if(drawPolygonDialog){
+    drawPolygonDialog->SetPointOfRotation(LineStartPoint);
+    drawPolygonDialog->exec();
+  }
+  return;
+}
+void OnContinuePolygon(){
+  if(drawPolygonDialog){
+    drawPolygonDialog->SetNextPointOfRotation();
+    drawPolygonDialog->exec();
+  }
+  return;
+}
+void OnStartPolygon(bool value){
+if(value){
+  dc=DC_POLYGON;
+  LoadMessage(tr(""),tr("Select a starting point in the view \n To Continue Drawing the polygon, click  continue menu item \n"));
+  return;
+ }
+ return;
+}
+void OnHandlePolygonDone(){
+
+   const float pie=3.14159265;
+  gp_Ax1 axis=drawPolygonDialog->Axis();
+  float ang=drawPolygonDialog->Angle();
+  gp_Dir dir=drawPolygonDialog->Direction();
+  float val=drawPolygonDialog->Length();
+  if(ang>=0.1 && ang<=0.999999999){
+    LoadMessage(tr(""),tr("Angle is not greater or equal to 1.0"));
+    return;
+  }
+  if(val==0.000){
+    LoadMessage(tr(""),tr("No Length is set"));
+    return;
+  }
+  float convertedAngle=ang*(pie/180.0f);
+  dir.Rotate(axis,convertedAngle);
+  TopoDS_Edge edge=TopoDS_Edge();
+  Handle(Geom_Line) line=new Geom_Line(drawPolygonDialog->PointOfRotation(),dir);
+  gp_Pnt refPoint;
+  line->D0((double)val,refPoint);
+  drawPolygonDialog->SetNextPoint(refPoint);
+  BRepBuilderAPI_MakeEdge edgeMaker;
+  edgeMaker.Init(line,0,val);
+  if(edgeMaker.IsDone()){
+    edge=edgeMaker.Edge();
+  }
+  else{
+    LoadMessage(tr(""),tr("Failed To Create Line"));
+    return;
+  }
+  drawPolygonDialog->SetIsNextPoint(true);
+  Handle(CustomAIS_Shape) lineShape=new CustomAIS_Shape(edge);
+  collectedLines.push_back(lineShape);
+  context->Display(lineShape,false);
+  view->Redraw();
+
+  return;
+}
+
+void OnEndPolygon(){
+  drawPolygonDialog->SetToDefault();
+  collectedLines.clear();
+  loopwire=TopoDS_Wire();
+  polygonAction->setChecked(false);
+  dc=DC_NULL;
+  return;
+}
+void ClosePolygon(){
+  if(drawPolygonDialog->IsClosed()){
+    LoadMessage(tr(""),tr("Drawn Object is closed"));
+    return;
+  }
+  if(drawPolygonDialog->IsNextPoint()){
+     BRepBuilderAPI_MakeEdge edgeMaker(drawPolygonDialog->StartPoint(),drawPolygonDialog->NextPoint());
+     TopoDS_Edge edge;
+     if(edgeMaker.IsDone()){
+       edge=edgeMaker.Edge();
+     }
+     else{
+       LoadMessage(tr(""),tr("Failed To Construct Line"));
+       return;
+     }
+     Handle(CustomAIS_Shape) lineShape=new CustomAIS_Shape(edge);
+     collectedLines.push_back(lineShape);
+     context->Display(lineShape,false);
+     drawPolygonDialog->SetIsClosed(true);
+     view->Redraw();
+     return;
+  }
+  return;
+}
+void OnConvertPolygonToWire(){
+  if(drawPolygonDialog->IsConvertedToWire()){
+    LoadMessage(tr(""),tr("Object has been converted to wire"));
+    return;
+  }
+  if(collectedLines.empty()){
+    LoadMessage(tr(""),tr("There is no source edge from which wire can be constructed"));
+    return;
+  }
+
+  int success;
+  BRepBuilderAPI_MakeWire wireMaker;
+  for(int i=0;i<collectedLines.size();i++){
+    wireMaker.Add(TopoDS::Edge(collectedLines.at(i)->Shape()));
+    context->Remove(collectedLines.at(i),false);
+  }
+  OnHandleWireError(wireMaker.Error(),success);
+  if(success==-1){
+    return;
+  }
+  loopwire=wireMaker.Wire();
+  Handle(CustomAIS_Shape) polygonShape=new CustomAIS_Shape(wireMaker.Wire());
+  context->Display(polygonShape,false);
+  drawPolygonDialog->SetIsConvertedToWire(true);
+  view->Redraw();
+  return;
+}
+
+void OnConvertToFace(){
+  if(drawPolygonDialog->IsConvertedToFace()){
+    LoadMessage(tr(""),tr("It has been converted to face"));
+    return;
+  }
+  if(!drawPolygonDialog->IsConvertedToWire()){
+   OnConvertPolygonToWire();
+  }
+  if(loopwire.IsSame(TopoDS_Wire())){
+    LoadMessage(tr(""),tr("Failed to convert to loop"));
+    return;
+  }
+  BRepBuilderAPI_MakeFace facemaker(loopwire);
+  if(!facemaker.IsDone()){
+    LoadMessage(tr(""),tr("Failed To Convert To Face"));
+    return;
+  }
+  Handle(CustomAIS_Shape) faceShape=new CustomAIS_Shape(facemaker.Face());
+  
+  context->Display(faceShape,false);
+  view->Redraw();
+  drawPolygonDialog->SetIsConvertedToFace(true);
+  return;
+}
+void OnApplyFillet(bool value){
+  if(value){
+    cm=CE_FILLET;
+    faceMenu->applyChamfer->setChecked(false);
+  }
+  return;
+}
+void OnApplyChamfer(bool value){
+  if(value){
+    cm=CE_CHAMFER;
+    faceMenu->applyFillet->setChecked(false);
+  }
+  return;
+}
+void OnChooseFilletVertex(bool value){
+  if(value){
+   context->Deactivate();
+   CurrentSelMode=1;
+   context->Activate(1);
+   LoadMessage(tr(""),tr("You can now select a vertex of the edge of the selected face for fillet"));
+
+  }
+  else{
+   context->Deactivate();
+   CurrentSelMode=4;
+   context->Activate(4);
+  }
+  return;
+}
+void OnChooseChamferVertex(bool value){
+  if(value){
+  context->Deactivate();
+   CurrentSelMode=1;
+   context->Activate(1);
+    LoadMessage(tr(""),tr("You can now select a vertex of the edge of the selected face for chamfer operation"));
+  }
+  else{
+    context->Deactivate();
+   CurrentSelMode=4;
+   context->Activate(4);
+  }
+  return;
+}
+
+void OnChooseEdgeForChamfer(bool value){
+   if(value){
+  context->Deactivate();
+   CurrentSelMode=2;
+   context->Activate(2);
+    LoadMessage(tr(""),tr("You can now select a vertex of the edge of the selected face for chamfer operation"));
+  }
+  else{
+    context->Deactivate();
+   CurrentSelMode=4;
+   context->Activate(4);
+  }
+return;
+}
+
+
+void EndFillet(){
+  cm=CE_NULL;
+  faceMenu->applyFillet->setChecked(false);
+  return;
+}
+void EndChamfer(){
+  cm=CE_NULL;
+  faceMenu->applyChamfer->setChecked(false);
+  return;
+}
+void BuildFillet(){
+  if(selFace.IsNull()){
+    LoadMessage(tr(""),tr("No Face is selected"));
+    return;
+  }
+  //check the validity of the parameters
+  if(filletVertex.IsNull()){
+    LoadMessage(tr(""),tr("No point is selected"));
+    return;
+  }
+  std::unique_ptr<ChFi2d_Builder> filletBuilder;
+  filletBuilder=std::make_unique<ChFi2d_Builder>(selFace);
+  filletBuilder->AddFillet(filletVertex,filletDialog->Radius());
+  int success=0;
+  EDGE::ChFiErrorHandler(filletBuilder->Status(),success);
+  if(success==-1){
+    LoadMessage(tr(""),tr("Cannot Complete Build"));
+    return;
+  }
+  TopoDS_Face filletFace=filletBuilder->Result();
+  Handle(CustomAIS_Shape) faceShape=new CustomAIS_Shape(filletFace);
+  if(selShape){
+    context->Remove(selShape,false);
+  }
+  context->Display(faceShape,false);
+  view->Redraw();
+  return;
+}
+void BuildChamfer(){
+  if(selFace.IsNull()){
+    LoadMessage(tr(""),tr("No Face is selected"));
+    return;
+  }
+  //check the validity of the parameters
+  if(chamferVertex.IsNull()){
+    LoadMessage(tr(""),tr("No point is selected"));
+    return;
+  }
+  std::unique_ptr<ChFi2d_Builder> chamferBuilder;
+  chamferBuilder=std::make_unique<ChFi2d_Builder>(selFace);
+  float pie=3.14159265;
+  float ang=chamferDialog->Angle()*(pie/180.0f);
+  chamferBuilder->AddChamfer(chamferEdge,chamferVertex,ang,chamferDialog->Distance());
+  int success=0;
+  EDGE::ChFiErrorHandler(chamferBuilder->Status(),success);
+  if(success==-1){
+    LoadMessage(tr(""),tr("Cannot Complete Build"));
+    return;
+  }
+  TopoDS_Face chamferedFace=chamferBuilder->Result();
+  Handle(CustomAIS_Shape) faceShape=new CustomAIS_Shape(chamferedFace);
+  if(selShape){
+    context->Remove(selShape,false);
+  }
+  context->Display(faceShape,false);
+  view->Redraw();
+  return;
+}
+
+
+void OnSelectRadiusForFillet(){
+   if(filletDialog){
+    filletDialog->exec();
+   }
+   return;
+}
+void OnSelectOthersForChamfer(){
+  if(chamferDialog){
+    chamferDialog->exec();
+  }
+  return;
+}
+void OnConvertToPolygon(){
+  return;
+}
+void OnHandleCopyMaterial(bool value){
+  if(value){
+  if(ChosenShape){
+   chosenShapeMaterial=ChosenShape->Attributes()->ShadingAspect()->Material();
+   emit EmitMaterial();
+  }
+  }
+  else{
+    emit UnEmitMaterial();
+  }
+  return;
+}
+
 };
 
 

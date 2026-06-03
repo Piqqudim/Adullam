@@ -34,16 +34,15 @@ class SinglyShapeNode:public NodeDelegateModel,public NodeInitializer{
  }
  QJsonObject save() const override{
     QJsonObject object=NodeDelegateModel::save();
-    object["BRep_Shape"]=ToString(OutputValue);
-    object["Initial Shape"]=ToString(initialShape);
+    object["BRep_Shape"]=ConvertToString(OutputValue);
     object["Shape Index"]=Index;
     return object;
  }
  void load(const QJsonObject& object) override{
     QString value=object["BRep_Shape"].toString();
-    QString value1=object["Initial Shape"].toString();
-    OutputValue=ToMainShape(value);
-    initialShape=ToMainShape(value1);
+  
+    OutputValue=ToShape(value);
+  
     Index=object["Shape Index"].toInt();
     if(OutputValue.IsSame(TopoDS_Shape())){
         LoadMessage(tr("Shape Error"),tr("It is Empty"));

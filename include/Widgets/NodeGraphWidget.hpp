@@ -59,6 +59,7 @@ SP_WIRE,
 SP_CMDSHAPE,
 SP_TRANSFORM,
 SP_AXIS,
+SP_MATNODE,
 SP_NULL
 };
 enum RENDER_STATE{
@@ -131,6 +132,7 @@ TopoDS_Shape NodeInputShape=TopoDS_Shape();
 TopoDS_Face nodeInputFace=TopoDS_Face();
 TopoDS_Edge nodeInputEdge=TopoDS_Edge();
 TopoDS_Shape NodeInitialShape=TopoDS_Shape();
+Graphic3d_MaterialAspect nodeShapeMaterial;
 gp_Ax2 nodeInputDir;
 FloatInputNode* receivedFloatNode=nullptr;
 SHAPEDRAW shapedraw=SP_NULL;
@@ -217,10 +219,7 @@ Registry->registerModel<IntegerInputNode>("DataTypes");
    Registry->registerModel<PrimitiveCubeNode>("Primitive Shapes");
    Registry->registerModel<PrimitiveCuboidNode>("Primitive Shapes");
     Registry->registerModel<PrimitiveSphereNode>("Primitive Shapes");
-   Registry->registerModel<PrimitiveShapeNode>([this]()->std::shared_ptr<PrimitiveShapeNode>{
-    auto ptr=std::make_shared<PrimitiveShapeNode>();
-    return ptr;
-   },tr("Primitive Shapes"));
+   Registry->registerModel<PrimitiveShapeNode>(tr("Primitive Shapes"));
    Registry->registerModel<PrimitiveConeNode>(tr("Primitive Shapes"));
 Registry->registerModel<PrimitiveTorusNode>(tr("Primitive Shapes"));
 Registry->registerModel<CommandShape>(tr("Command"));
@@ -241,6 +240,7 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
    Registry->registerModel<PrimitiveCylinderNode>(tr("Primitive Shapes"));
    Registry->registerModel<ColorNode>("Shading");
    Registry->registerModel<RGBColorNode>("Shading");
+   Registry->registerModel<SinglyMaterialNode>(tr("Shading"));
    Registry->registerModel<RotationNode>("Transform");
    Registry->registerModel<ScaleNode>("Transform");
    Registry->registerModel<TranslateNode>("Transform");
@@ -252,8 +252,8 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
    Registry->registerModel<PositionedDirYNode>(tr("Predefined Values"));
    Registry->registerModel<PositionedDirZNode>(tr("Predefined Values"));
    Registry->registerModel<NegatedPositionedDirXNode>(tr("Predefined Values"));
-     Registry->registerModel<NegatedPositionedDirYNode>(tr("Predefined Values"));
-     Registry->registerModel<NegatedPositionedDirZNode>(tr("Predefined Values"));
+   Registry->registerModel<NegatedPositionedDirYNode>(tr("Predefined Values"));
+   Registry->registerModel<NegatedPositionedDirZNode>(tr("Predefined Values"));
    Registry->registerModel<FaceNode>(tr("Sub Shape"));
    Registry->registerModel<FuseNode>(tr("Boolean Operation"));
    Registry->registerModel<CutNode>(tr("Boolean Operation"));
@@ -404,39 +404,7 @@ void OnFindSinglyShape(){
 }
 
 void LoopModelAndFindShape(const TopoDS_Shape& shape){
-  auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
-  if(!gscene){
-    emit SendMessage(tr("Failed To Cast To Scene"));
-    return;
-  }
-  
-    auto gmodel=gscene->GraphModel();
-     if(gmodel){
-      emit SendMessage(tr("Graph Model Created"));
-      std::cout<<"Graph Model Created Successfully"<<std::endl;
-     }
-     for(auto& ref:gscene->items()){
-        auto nodeObject=qgraphicsitem_cast<NodeGraphicsObject*>(ref);
-        if(nodeObject){
-           if(gmodel->Models().empty()){
-            return;  //size==0;
-           }
-           else{
-            receivedShape=dynamic_cast<PrimitiveShapeNode*>(gmodel->Models().at(nodeObject->nodeId()).get());
-            if(receivedShape){
-               if(receivedShape->Shape().IsSame(shape)){
-                std::cout<<"Shape Found In GraphModel"<<std::endl;
-                if(!nodeObject->isSelected()){
-                  nodeObject->setSelected(true);
-                  nodeObject->update();
-                }
-                break;
-               }
-            }
-           }
-        }
-     }
-     return;
+  return;
 }
 void OnSendId(){
    if(ShapeId==-1){
@@ -619,6 +587,42 @@ void mousePressEvent(QMouseEvent* event) override{
      return;
     }
     switch(shapedraw){
+    case SP_MATNODE:{
+       auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+       if(!gscene){
+        return;
+       }
+      size_t nodeId = gscene->GraphModel()->addNode(tr("Singly Material Node")); 
+     if(nodeId!= InvalidNodeId){
+       gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
+       auto node=dynamic_cast<SinglyMaterialNode*>(gscene->GraphModel()->Models().at(nodeId).get());
+       if(node){
+         node->SetMaterial(nodeShapeMaterial);
+        
+          std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
+          if(ngo){
+             ngo->setVisible(true);
+             ngo->update();
+              gscene->update();
+              updateSceneRect(gscene->sceneRect());
+              cout<<"Node Initiated Successfully"<<std::endl;
+              return;
+          }
+       }
+       else{
+        std::cout<<"Failed to get a transformation node"<<std::endl;
+         return;
+       }
+
+
+       }
+       else{
+        std::cout<<"Not Created Successfully"<<std::endl;
+       }
+
+   
+     return;
+    }
     case SP_AXIS:{
       auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
        if(!gscene){
@@ -958,19 +962,7 @@ void mousePressEvent(QMouseEvent* event) override{
 
               }
               }
-              receivedShape=dynamic_cast<PrimitiveShapeNode*>(gmodel->Models().at(nodeObject->nodeId()).get());
-              if(receivedShape){
-                if(receivedShape->Shape().IsSame(TopoDS_Shape())){ //if it is the same as the default constructor
-                    std::cout<<"Shape Is the Same"<<std::endl;  
-                     return;
-                }
-                if(receivedShape->ShouldSend){
-                emit OnSendShape(receivedShape->Shape());
-                emit SendMessage(tr("Shape sent Successfully"));
-                std::cout<<"Shape Successfully Sent"<<std::endl;
-                }
-                return;
-              }
+             
               receivedFace=dynamic_cast<FaceNode*>(gmodel->Models().at(nodeObject->nodeId()).get());
               if(receivedFace){
                 if(receivedFace->outputShape().IsSame(TopoDS_Shape())){

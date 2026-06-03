@@ -10,7 +10,7 @@ class ShapeNodeData:public NodeData{
      Graphic3d_MaterialAspect mat_aspect;
    
     QString m_Name;
-    bool hasMaterial=false;  //ByDefault the object has no material
+    bool hasMaterial=true;  //ByDefault the object has no material
  public:
     //it belongs to this class and not to an object of Shape
  ShapeNodeData(const QString& name=QString(""),const TopoDS_Shape& shape=TopoDS_Shape()):m_Name(name){

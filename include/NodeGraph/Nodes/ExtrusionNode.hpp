@@ -2,7 +2,7 @@
 #include<NodeDelegateModel>
 #include<NodeInitializer.hpp>
 #include<BRepPrimAPI_MakePrism.hxx>
-#include<FaceNodeData.hpp>
+
 #include<AxisNodeData.hpp>
 #include<FloatNodeData.hpp>
 #include<ShapeUtil.hpp>
@@ -15,11 +15,11 @@ using namespace QtNodes;
 using namespace Shape_Utility;
 class ExtrusionNode:public NodeDelegateModel{
     private:
-    weak_ptr<FaceNodeData> face_input_data;
+    weak_ptr<ShapeNodeData> face_input_data;
     weak_ptr<AxisNodeData> dir_input_data;
     weak_ptr<FloatNodeData> float_input_data;
     std::shared_ptr<ShapeNodeData> outputShape;
-    TopoDS_Face face;
+    TopoDS_Shape  face;
     gp_Dir dir;
     float value=4.0f; //by default,the value is 4.0;
 public:
@@ -53,7 +53,7 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
         case PortType::In:{
             switch(portIndex){
                 case 0:
-                   return FaceNodeData(tr("Input Face")).type(); 
+                   return ShapeNodeData(tr("Input Shape")).type(); 
                 case 1:{
                     return AxisNodeData(tr("Direction")).type();
                 }
@@ -76,9 +76,9 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
   
     switch(portIndex){
         case 0:{
-            face_input_data=dynamic_pointer_cast<FaceNodeData>(data);
+            face_input_data=dynamic_pointer_cast<ShapeNodeData>(data);
             if(face_input_data.lock()){
-                face=face_input_data.lock()->GetFaceData();
+                face=face_input_data.lock()->Data();
             }
             break;
         }

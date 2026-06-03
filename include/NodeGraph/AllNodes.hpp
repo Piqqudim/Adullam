@@ -67,6 +67,7 @@
 #include<FilletNode.hpp>
 #include<SweepNode.hpp>
 #include<SinglyAxisNode.hpp>
+#include<SinglyMaterialNode.hpp>
 
 
 

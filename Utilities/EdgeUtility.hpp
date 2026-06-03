@@ -7,6 +7,7 @@
 #include<BRep_Tool.hxx>
 #include<QtCore/QString>
 #include<Standard_NoSuchObject.hxx>
+#include<Chfi2d_Builder.hxx>
 #include<InfoUtility.hpp>
 using namespace INFO;
 namespace EDGE{
@@ -124,6 +125,77 @@ inline QString EdgeIsOnSurface(const TopoDS_Edge& edge){
    return;
  
  
+ }
+ inline void ChFiErrorHandler(const ChFi2d_ConstructionError& error,int& success){
+  switch(error){
+    case ChFi2d_NotPlanar:{
+      LoadMessage(QString(""),QString("The Face is not planar"));
+      success=-1;
+      return;
+    }
+    case ChFi2d_NoFace:{
+     LoadMessage(QString(""),QString("No Face was formed"));
+     success=-1;
+     return;
+    }
+    case ChFi2d_InitialisationError:{
+     LoadMessage(QString(""),QString("The two faces selected are not compatible"));
+     success=-1;
+     return;
+    }
+     case ChFi2d_ParametersError:{
+     LoadMessage(QString(""),QString("It is either the angle or distance of the chamfer parameters is less than orequal to zero"));
+     success=-1;
+     return;
+    }
+     case ChFi2d_Ready:{
+     LoadMessage(QString(""),QString("Initialization Successful"));
+     success=1;
+     return;
+    }
+     case ChFi2d_IsDone:{
+     LoadMessage(QString(""),QString("The Operation is done"));
+     success=1;
+     return;
+    }
+     case ChFi2d_ComputationError:{
+     LoadMessage(QString(""),QString("The algorithm for computation could not find solution"));
+     success=-1;
+     return;
+    }
+     case ChFi2d_ConnexionError:{
+     LoadMessage(QString(""),QString("The vertex given to locate the fillet or chamfer is not connected to 2 edges,\n use the intersection point of the two edges"));
+     success=-1;
+     return;
+    }
+     case ChFi2d_TangencyError:{
+     LoadMessage(QString(""),QString("The two edges connected to the vertex are tangent"));
+     success=-1;
+     return;
+    }
+     case ChFi2d_FirstEdgeDegenerated:{
+     LoadMessage(QString(""),QString("The first edge is degenerated"));
+     success=-1;
+     return;
+    }
+    case ChFi2d_LastEdgeDegenerated:{
+     LoadMessage(QString(""),QString("The last edge is degenerated"));
+     success=-1;
+     return;
+    }
+     case ChFi2d_BothEdgesDegenerated:{
+     LoadMessage(QString(""),QString("The two edges are degenerated"));
+     success=-1;
+     return;
+    }
+     case ChFi2d_NotAuthorized:{
+     LoadMessage(QString(""),QString("One or two of the edges  connected to the vertex is either a chamfer or a fillet, One or two of the edges connected to the circle is not a line or a circle"));
+     success=-1;
+     return;
+    }
+
+  }
+  return;
  }
  inline gp_Pnt GetEdgeMidPoint(const TopoDS_Edge& edge){
    

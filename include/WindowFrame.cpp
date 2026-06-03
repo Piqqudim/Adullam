@@ -2,7 +2,7 @@
 #include<QtCore/Qt>
 Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
   
-     menubar.reset(new MenuBar(this));
+     menubar.reset(new QMenuBar(this));
      
      tabwidget.reset(new TabWidget(this));
      
@@ -191,6 +191,9 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
    connect(centralwidget_1.get(),&DrawingCentralWidget::OnSendScaleTransform,this,&Window_Frame::OnHandleScale);
    connect(centralwidget_1.get(),&DrawingCentralWidget::EmitAxis,this,&Window_Frame::OnHandleAxis);
    connect(centralwidget_1.get(),&DrawingCentralWidget::OnEmitEdgeInfo,this,&Window_Frame::OnHandleEdgeInfo);
+   connect(objprswidget->Convert(),&QCheckBox::toggled,this,&Window_Frame::OnHandleMaterialNode);  
+   connect(centralwidget_1.get(),&DrawingCentralWidget::EmitMaterial,this,&Window_Frame::OnHandleEmitMaterial);
+   connect(centralwidget_1.get(),&DrawingCentralWidget::UnEmitMaterial,this,&Window_Frame::OnHandleUnEmitMaterial);
    
 }
 

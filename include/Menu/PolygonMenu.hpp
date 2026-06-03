@@ -7,8 +7,8 @@ public:
 std::unique_ptr<QAction> gatheredPointsAction;
 std::unique_ptr<QAction> deleteAction; //deletes the transient Polygon
 std::unique_ptr<QAction> convertToBSpline;
-  std::unique_ptr<QAction> DeCurve;
-   std::unique_ptr<QAction> addToContext;
+std::unique_ptr<QAction> DeCurve;
+std::unique_ptr<QAction> addToContext;
 std::unique_ptr<QAction> removeLastAction;
 std::unique_ptr<QAction> LineStyleAction;
 public:
@@ -88,4 +88,28 @@ class BSplineMenu:public QMenu{
   }
 
 
+};
+class DrawPolygonMenu:public QMenu{
+public:
+std::unique_ptr<QAction> startPolygonAction;
+std::unique_ptr<QAction> continueAction;
+std::unique_ptr<QAction> endPolygonAction;
+std::unique_ptr<QAction> closeAction;
+std::unique_ptr<QAction> convertToWireAction;
+std::unique_ptr<QAction> convertToFaceAction;
+//don't forget to add convertToPolygon
+DrawPolygonMenu(){
+  startPolygonAction=std::make_unique<QAction>(tr("Start Polygon"));
+  addAction(startPolygonAction.get());
+  continueAction=std::make_unique<QAction>(tr("Continue"));
+  endPolygonAction=std::make_unique<QAction>(tr("End Polygon"));
+  closeAction=std::make_unique<QAction>(tr("Close Polygon"));
+  convertToWireAction=std::make_unique<QAction>(tr("Convert To Wire"));
+  convertToFaceAction=std::make_unique<QAction>(tr("Convert To Face"));
+  addAction(continueAction.get());
+  addAction(endPolygonAction.get());
+  addAction(closeAction.get());
+  addAction(convertToWireAction.get());
+  addAction(convertToFaceAction.get());
+}
 };
