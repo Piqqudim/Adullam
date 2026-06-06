@@ -309,7 +309,7 @@ void SetObjectTransparency(Handle(AIS_InteractiveContext)& context,Handle(Custom
       return;
     }
     context->SetTransparency(shape,transp,true);
-
+    outputMaterial.SetTransparency(transp);
 
   return;
 }

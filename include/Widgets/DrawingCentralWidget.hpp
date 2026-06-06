@@ -124,6 +124,7 @@ DC_CIRCLE,
 DC_SPLINE,
 DC_BEZIER,
 DC_ARC,
+DC_TRIM,
 DC_POLYGON
 };
 enum GP_STATE{
@@ -227,6 +228,8 @@ std::unique_ptr<QAction> copyRotationAction=std::make_unique<QAction>(tr("Copy R
 std::unique_ptr<QAction> copyTranslationAction=std::make_unique<QAction>(tr("Copy Translation"),nullptr);
 std::unique_ptr<QAction> polygonAction=std::make_unique<QAction>(tr("Draw Polygon"));
 std::unique_ptr<QAction> copyMaterial=std::make_unique<QAction>(tr("Convert To Material Node"));
+std::unique_ptr<QAction> createMaterialNode=std::make_unique<QAction>(tr("Create Material Node"));
+
 std::unique_ptr<TransientPolygon> transPolygon;
 std::unique_ptr<TransientBezierCurve> transCurve;
 std::unique_ptr<TransientBSplineCurve> bspCurve;
@@ -236,6 +239,7 @@ std::unique_ptr<AxisMenu> axisMenu;
 std::unique_ptr<DrawPolygonMenu> drawPolyMenu=std::make_unique<DrawPolygonMenu>();
 std::unique_ptr<ApplyChamferMenu> chamferMenu=std::make_unique<ApplyChamferMenu>();
 std::unique_ptr<ApplyFilletMenu> filletMenu=std::make_unique<ApplyFilletMenu>();
+std::unique_ptr<TrimMenu> trimMenu=std::make_unique<TrimMenu>();
 bool IsShapePrsAdded=false;   //this is to keep track of whether shape presentation menu item has been added
  TopoDS_Face selFace;
  TopoDS_Edge selEdge;
@@ -252,6 +256,8 @@ QAction* DeleteObjectGizmoAction=nullptr;
 std::unique_ptr<QAction> refreshAction;
 ContextMenu cm=CE_NULL;
 DRAWCURVE dc=DC_NULL;
+DRAWCURVE prevdc=DC_NULL;
+TrimParam trimparam;
 Handle(Graphic3d_AspectMarker3d) GridAspect=new Graphic3d_AspectMarker3d(Aspect_TOM_RING1,Quantity_NOC_LIGHTSTEELBLUE,2);
 bool ShowGrid=true;
 bool ShowPlane=true;
@@ -286,6 +292,8 @@ Handle(CustomAIS_Shape) emittedShape;  //this is to select subshapes of a shape
 Handle(CustomAIS_Shape) prevEmittedShape;
 Handle(CustomAIS_Shape)  currSelShape;
 Handle(CustomAIS_Shape) currDetShape;
+Handle(CustomAIS_Shape) firstTrimShape;
+Handle(CustomAIS_Shape) secondTrimShape;
 Quantity_Color currentShapeColor;
 gp_Pnt2d lastpoint; 
 gp_Pnt2d panlastpoint;   //this will store the pan 
@@ -345,6 +353,8 @@ TopoDS_Wire loopwire=TopoDS_Wire();
 TopoDS_Edge chamferEdge=TopoDS_Edge();
 TopoDS_Vertex chamferVertex=TopoDS_Vertex();
 TopoDS_Vertex filletVertex=TopoDS_Vertex();
+gp_Pnt trimFirstPoint;
+gp_Pnt trimSecondPoint;
 int mainIndex=-1;
 int subMainIndex=-1;
 int SentShapeId=-1;
@@ -459,9 +469,10 @@ DrawingCentralWidget(QWidget* parent_widget):QWidget(parent_widget){
     GatherBSplineAction=make_unique<QAction>(tr("Gather BSPline Points"),nullptr);
     GatherBSplineAction->setCheckable(true);
     polygonAction->setCheckable(true);
-    
+    createMaterialNode->setCheckable(true);
     
     DockMenus->addAction(showSettingAction);
+    DockMenus->addAction(createMaterialNode.get());
     DockMenus->addAction(UndoAction);
     DockMenus->addAction(RedoAction);
     DockMenus->addAction(ConstructPointNodeAction.get());
@@ -481,7 +492,7 @@ DrawingCentralWidget(QWidget* parent_widget):QWidget(parent_widget){
  view =Viewer->CreateView();   //Create the view from the viewer
  //Now to generate an id that can embed Qt project  
  context=new AIS_InteractiveContext(Viewer);
- 
+ drawLineDialog->SetContext(context);
  transPolygon=std::make_unique <TransientPolygon>(std::ref(context));
  
  transCurve=make_unique<TransientBezierCurve>(std::ref(context));
@@ -593,8 +604,9 @@ view->MustBeResized();
  connect(chamferMenu->endChamferOps.get(),&QAction::triggered,this,&DrawingCentralWidget::EndChamfer);
  connect(filletMenu->endFilletOps.get(),&QAction::triggered,this,&DrawingCentralWidget::EndFillet); 
  connect(copyMaterial.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleCopyMaterial);
- 
-
+ connect(edgeMenu->trimAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleTrim);
+ connect(trimMenu->TrimAction(),&QAction::triggered,this,&DrawingCentralWidget::OnTrimCurve);
+ connect(trimMenu->EndOps(),&QAction::triggerred,this,&DrawingCentralWidget::OnEndTrim);
 
 }
 
@@ -1556,7 +1568,12 @@ void mousePressEvent(QMouseEvent* event) override{
     currSelShape->UseColor();
     context->Remove(currSelShape,true);
    }
-  
+   if(CurrentSelMode!=2){
+   selEdge=TopoDS_Edge();
+   }
+   if(CurrentSelMode!=4){
+   selFace=TopoDS_Face();
+   }
    st=NULL_SELECT;
    st1=NULL_SELECT;
    cm=CE_NULL;
@@ -1739,12 +1756,21 @@ void mousePressEvent(QMouseEvent* event) override{
         }
         selFaceShape=selectedEntity->Shape();
         chamferEdge=TopoDS::Edge(selectedEntity->Shape());
+       
         st1=EDGE_SELECT;
          gp_Pnt selectedPoint=context->MainSelector()->PickedPoint(1);
          LineStartPoint=selectedPoint;
          int_x=selectedPoint.X();
          int_y=selectedPoint.Y();
          int_z=selectedPoint.Z();
+          if(trimMenu->First()->isChecked()){
+          firstTrimShape=selShape;
+          trimFirstPoint=LineStartPoint;
+        }
+        if(trimMenu->Second()->isChecked()){
+          secondTrimShape=selShape;
+          trimSecondPoint=LineStartPoint;
+        }
           PrevSelMode=CurrentSelMode;
         OnHighlight(selShape,selFaceShape,CurrentSelMode); 
          if(selShape){
@@ -1832,6 +1858,10 @@ void mousePressEvent(QMouseEvent* event) override{
    
 
 else if(event->button()==Qt::RightButton){
+  if(dc==DC_TRIM){
+    trimMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
   if(cm==CE_CHAMFER){
     chamferMenu->exec(event->globalPosition().toPoint());
     return;
@@ -3177,7 +3207,7 @@ void OnSelectOthersForChamfer(){
   }
   return;
 }
-void OnConvertToPolygon(){
+void OnConvertToPolyLine(){
   return;
 }
 void OnHandleCopyMaterial(bool value){
@@ -3190,6 +3220,60 @@ void OnHandleCopyMaterial(bool value){
   else{
     emit UnEmitMaterial();
   }
+  return;
+}
+void OnHandleTrim(bool value){
+  if(value){
+    LoadMessage(tr(""),tr("Select Portion of Curve That You want to keep"));
+   prevdc=dc;
+   dc=DC_TRIM;
+  }
+  else{
+    dc=prevdc;
+  }
+}
+void OnEndTrim(){
+  dc=DC_EDGE;
+  return;
+}
+void OnTrimCurve(){
+  if(!selShape){
+    LoadMessage(tr(""),tr("No Parent Shape"));
+    return;
+  }
+  
+  if(selEdge.IsNull()){
+    LoadMessage(tr(""),tr("No Selected Edge"));
+    return;
+  }
+  EDGE::OnGetParameterOnCurve(selEdge,trimFirstPoint,trimparam.Umin);
+  EDGE::OnGetParameterOnCurve(selEdge,trimSecondPoint,trimparam.Umax);
+  double dummyUmin;
+  double dummyUmax;
+  Handle(Geom_Curve) curve=BRep_Tool::Curve(selEdge,dummyUmin,dummyUmax);
+  if(!curve){
+    LoadMessage(tr(""),tr("Failed To Convert To Convert To it's underlying curve"));
+    return;
+  }
+  if(trimparam.Umin==trimparam.Umax){
+      LoadMessage(tr(""),tr("Same Points were clicked"));
+      return;
+  }
+  BRepBuilderAPI_MakeEdge edgemaker;
+  if(trimparam.Umin<trimparam.Umax){
+    edgemaker.Init(curve,trimparam.Umin,trimparam.Umax);
+  }
+  else{
+    edgemaker.Init(curve,trimparam.Umax,trimparam.Umin);
+  }
+  if(!edgemaker.IsDone()){
+    LoadMessage(tr(""),tr("Failed To Trim Curve"));
+    return;
+  }
+  selShape->SetShape(edgemaker.Edge());
+  context->Redisplay(selShape,false);
+  view->Redraw();
+  
   return;
 }
 

@@ -78,7 +78,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
               
               for(int i=0;i<InputShape_1.lock()->Size();i++){
                  if(!InputShape_1.lock()->GetValueAt(i).Data().IsSame(TopoDS_Shape()))
-                 outputData.emplace_back(tr(""),InputShape_1.lock()->GetValueAt(i).Data());
+                 outputData.emplace_back(tr(""),InputShape_1.lock()->GetValueAt(i).aspect(),InputShape_1.lock()->GetValueAt(i).Data());
                  }
                  
              }
@@ -90,7 +90,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
           if(InputShape_2.lock()){
              for(int i=0;i<InputShape_2.lock()->Size();i++){
                  if(!InputShape_2.lock()->GetValueAt(i).Data().IsSame(TopoDS_Shape()))
-                 outputData.emplace_back(tr(""),InputShape_2.lock()->GetValueAt(i).Data());
+                 outputData.emplace_back(tr(""),InputShape_2.lock()->GetValueAt(i).aspect(),InputShape_2.lock()->GetValueAt(i).Data());
                  }
           }
           std::cout<<"Second Array Set"<<"\n";

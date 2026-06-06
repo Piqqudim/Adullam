@@ -8,9 +8,13 @@
 #include<DoubleLineEdit.hpp>
 #include<QtWidgets/QRadioButton>
 #include<QtWidgets/QPushButton>
+#include<MyCustomAIS_Shape.hxx>
+#include<AIS_InteractiveContext.hxx>
+#include<Geom_Line.hxx>
 #include<gp_Dir.hxx>
 #include<gp_Ax1.hxx>
 #include<gp_Pnt.hxx>
+#include<BRepBuilderAPI_MakeEdge.hxx>
 using namespace std;
 class DrawLineDialog:public QDialog{
 private:
@@ -34,14 +38,18 @@ std::unique_ptr<QRadioButton> negInXButton;
 std::unique_ptr<QRadioButton> negInYButton;
 std::unique_ptr<QRadioButton> negInZButton;
 std::unique_ptr<QDialogButtonBox> dialogButtons;
+Handle(AIS_InteractiveContext) context;
+Handle(CustomAIS_Shape) lineShape;
+float pie;
 QPushButton* okButton=nullptr;
 float relativeAngle=0.0f; //specified in degrees,it has to be converted to radian
 float length=0.0;  // length..
-gp_Dir direction; // direction of draw
+gp_Dir direction=gp_Dir(0.0,.0,1.0); // direction of draw
 gp_Ax1 axisOfRotation; //axis of rotation;
 gp_Pnt pointOfRotation;
 public:
 DrawLineDialog(QWidget* parent=nullptr):QDialog(parent){
+    pie=3.14159265;
     setWindowTitle(tr("Draw Line Dialog"));
     vlayout=std::make_unique<QVBoxLayout>();
     vlayout->setAlignment(Qt::AlignTop|Qt::AlignLeft);
@@ -99,6 +107,43 @@ void SetPointOfRotation(const gp_Pnt& pnt){
     pointOfRotation=pnt;
     return;
 }
+void SetContext(Handle(AIS_InteractiveContext) con){
+    context=con;
+    return;
+}
+void OnDisplay(){
+    if(!context){
+        return;
+    }
+    if(Angle()>=0 && Angle()<=0.99){
+        return;
+    }
+    if(Length()==0.0){
+        return;
+    }
+    DetermineValue();
+    float ang=Angle()*(pie/180.0f);
+    auto dir=Direction();
+    auto axis=Axis();
+    dir.Rotate(axis,ang);
+    TopoDS_Edge edge;
+    BRepBuilderAPI_MakeEdge edgeMaker;
+    Handle(Geom_Line) line=new Geom_Line(SetPointOfRotation,dir);
+    edgeMaker.Init(line,0,Length());
+    if(!edgeMaker.IsDone()){
+        return;
+    }
+    if(lineShape.IsNull()){
+      lineShape=new CustomAIS_Shape(edgeMaker.Edge());
+      context->Display(lineShape,true);
+      return;
+    }
+    if(context->IsDisplayed(lineShape)){
+        lineShape->SetShape(edgeMaker.Edge());
+        context->Redisplay(lineShape,true);
+    }
+     return; 
+}
 gp_Dir Direction() const{
     return direction;
 }
@@ -111,13 +156,8 @@ float Length() const{
 gp_Ax1 Axis() const{
     return axisOfRotation;
 }
-
-signals:
-void OnEmitDone();
-public slots:
-void OnHandleOk(){
-    //this gets the relative angles,length,axis of rotation
-    if(inXButton->isChecked()){
+void DetermineValue(){
+     if(inXButton->isChecked()){
         direction=gp_Dir(1.0,0.0,0.0);
     }
     else if(inYButton->isChecked()){
@@ -144,16 +184,26 @@ void OnHandleOk(){
      if(zDirectButton->isChecked()){
         axisOfRotation=gp_Ax1(pointOfRotation,gp_Dir(0.0,0.0,1.0));
     }
+    return;
+}
+signals:
+void OnEmitDone();
+public slots:
+void OnHandleOk(){
+    //this gets the relative angles,length,axis of rotation
+   DetermineValue();
     emit OnEmitDone();
     accept();
     return;
 }
 void OnGetValueFromLengthEdit(const float& value){
     length=value;
+    OnDisplay();
     return;
 }
 void OnGetValueFromRelativeAngleEdit(const float& value){
     relativeAngle=value;
+    OnDisplay();
     return;
 }
 };

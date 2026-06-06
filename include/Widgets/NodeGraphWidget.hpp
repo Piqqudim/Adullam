@@ -28,6 +28,7 @@
 #include<QtCore/QJsonDocument>
 #include<ConnectionIdUtils>
 #include<QtWidgets/QGraphicsRectItem>
+#include<MaterialEditorDialog.hpp>
 using namespace INFO;
 using namespace std;
 using QtNodes::GraphicsView;
@@ -111,7 +112,8 @@ std::unique_ptr<QAction> showIndex=std::make_unique<QAction>(tr("Show Index"),nu
 std::unique_ptr<QAction> showIndex1=std::make_unique<QAction>(tr("Show Index"),nullptr);
 std::unique_ptr<QAction> unHighlightFaceAction=std::make_unique<QAction>(tr("Unhighlight"),nullptr);
 std::unique_ptr<QAction> setFalseAction=std::make_unique<QAction>(tr("Set To False"));
-
+std::unique_ptr<QAction> editAction=std::make_unique<QAction>(tr("Edit"));
+std::unique_ptr<MaterialEditorDialog> matDialog=std::make_unique<MaterialEditorDialog>();
 std::reference_wrapper<Handle(AIS_InteractiveContext)> context;
 DataFlowGraphModel* graph_model=nullptr;
 size_t CurrId=0;
@@ -150,6 +152,7 @@ EdgeNode* receivedEdge=nullptr;
 SinglyShapeNode* singleNode=nullptr;
 SinglyEdgeNode* edgeNode=nullptr;
 SinglyFaceNode* faceNode=nullptr;
+SinglyMaterialNode* matnode=nullptr;
 bool CanDrawPointNode=false;
 bool IsCubeNodeSet=false;
 bool IsFloatNodeSet=false;
@@ -189,7 +192,7 @@ NodeGraphWidget(QWidget* parent_widget,Handle(AIS_InteractiveContext)& context_1
   faceNodeMenu->addAction(showIndex.get());
    edgeNodeMenu->addAction(showIndex1.get());
    nodeSceneMenu->addAction(setFalseAction.get());
-   
+   nodeSceneMenu->addAction(editAction.get());
    Registry->registerModel<AdditionNode>("Operators");
    Registry->registerModel<OutputNode>([this]()->std::shared_ptr<OutputNode>{
       auto ptr=make_shared<OutputNode>();
@@ -304,6 +307,7 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
   connect(deleteFaceAction.get(),&QAction::triggered,this,&NodeGraphWidget::OnDeleteHandler);
   connect(dragMenu->deleteNodes.get(),&QAction::triggered,this,&NodeGraphWidget::OnDeleteNodes);
   connect(setFalseAction.get(),QAction::triggered,this,&NodeGraphWidget::OnHandleSetFalse);
+  connect(editAction.get(),&QAction::triggered,this,&NodeGraphWidget::OnHandleEdit);
   return;
 }
 void OnFindSubFace(const int& parentindex,const int& childindex){
@@ -510,6 +514,8 @@ void mousePressEvent(QMouseEvent* event) override{
     return;
   }
   if(event->button()==Qt::LeftButton){
+    receivedShape=nullptr;
+     matnode=nullptr;
   if(dstatus==DS_DRAG){
    setDragMode(QGraphicsView::RubberBandDrag);
      return;
@@ -1002,7 +1008,11 @@ void mousePressEvent(QMouseEvent* event) override{
               subShapeId=faceNode->index();
               cms=CMS_FACE;
               return;
-             } 
+             }
+              matnode=dynamic_cast<SinglyMaterialNode*>(gmodel->Models().at(nodeObject->nodeId()).get());
+              if(matnode){
+                return;
+              }
              }
            }
            return;
@@ -1587,7 +1597,15 @@ void OnHandleSetFalse(){
 }
   return;
 }
-
+void OnHandleEdit(){
+  if(!matnode){
+    LoadMessage(tr(""),tr("No Singly material node selected"));
+    return;
+  }
+  matDialog->SetMatNode(matnode);
+  matDialog->exec();
+  return;
+}
 
 /*void OnUpdateNodeModel(const QVariant&  value){
   auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());

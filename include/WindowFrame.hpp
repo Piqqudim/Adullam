@@ -8,7 +8,7 @@
 #include"DockWidget.hpp"
 #include"DrawingCentralWidget.hpp"
 #include<TabWidget.hpp>
-
+#include<MaterialNodeWidget.hpp>
 #include<QtGui/QAction>
 #include<memory>
 #include<QStatusBar>
@@ -56,8 +56,10 @@ class Window_Frame:public QMainWindow{
     std::unique_ptr<DrawCubeWidget> dcubewidget;
     std::unique_ptr<ColorCollectionWidget> colorwidget; 
     std::unique_ptr<ColorCollectionWidget> colorwidget_1=std::make_unique<ColorCollectionWidget>(nullptr);
+     std::unique_ptr<ColorCollectionWidget> colorwidget_2=std::make_unique<ColorCollectionWidget>(nullptr);
     std::unique_ptr<EdgeWidget> edgeWidget=std::make_unique<EdgeWidget>();
     std::unique_ptr<QSplitter> Splitter;
+    std::unique_ptr<MaterialNodeWidget> matnodewidget=std::make_unique<MaterialNodeWidget>();
     std::unique_ptr<EdgeInfoWidget> edgeInfoWidget=std::make_unique<EdgeInfoWidget>();
     ModelMenu* ModelActionMenu=nullptr;
     FileMenu* FileActionMenu=nullptr;
@@ -69,6 +71,7 @@ class Window_Frame:public QMainWindow{
     std::unique_ptr<TabWidget> tabwidget_1;  //This tabwidgets will be used to display Graphics View,it will contained by the splitter
     std::unique_ptr<TreeViewWidget> fileSystemWidget;
     std::unique_ptr<ObjectPresentationWidget> objprswidget;
+    
     std::unique_ptr<ObjectInfoWidget> objinfowidget;  //this will show the properties of the object to display
     Handle(CustomAIS_Shape) shape=new CustomAIS_Shape(DrawCube(80));
     std::unique_ptr<SurfaceInfoWidget> surface_widget=std::make_unique<SurfaceInfoWidget>();
@@ -1861,6 +1864,19 @@ void OnHandleMaterialNode(bool value){
   }
   return;
 }
+void OnHandleMaterialNodeForMatNodeWidget(bool value){
+   if(value){
+   nodewidget->nodeShapeMaterial=matnodewidget->MatSection()->GetMaterial();
+   nodewidget->shapedraw=SP_MATNODE;
+   
+  }
+  else{
+    nodewidget->shapedraw=SP_NULL;
+  
+    
+  }
+  return;
+}
 void OnHandleEmitMaterial(){
     nodewidget->nodeShapeMaterial=centralwidget_1->chosenShapeMaterial;
     nodewidget->shapedraw=SP_MATNODE;
@@ -1870,6 +1886,89 @@ void OnHandleUnEmitMaterial(){
    nodewidget->shapedraw=SP_NULL;
   return;
 }
+void OnHandleDiffuseColor(const size_t& ind){
+  matnodewidget->MatSection()->SetMaterialSelect(MS_DIFFUSE);
+  if(dockwidget_2->GetScrolledWidget()){
+    dockwidget_2->RemoveWidget();
+  }
+  dockwidget_2->SetWidget(colorwidget_2.get());
+  return;
+}
+void OnHandleBaseColor(const size_t& ind){
+  matnodewidget->MatSection()->SetMaterialSelect(MS_BASE);
+  if(dockwidget_2->GetScrolledWidget()){
+    dockwidget_2->RemoveWidget();
+  }
+  dockwidget_2->SetWidget(colorwidget_2.get());
+  return;
+}
+ void OnHandleEmissiveColor(const size_t& ind){
+   matnodewidget->MatSection()->SetMaterialSelect(MS_EMISSIVE);
+  if(dockwidget_2->GetScrolledWidget()){
+    dockwidget_2->RemoveWidget();
+  }
+  dockwidget_2->SetWidget(colorwidget_2.get());
+  return;
+ }
+ void OnHandleAmbientColor(const size_t& ind){
+   matnodewidget->MatSection()->SetMaterialSelect(MS_AMBIENT);
+  if(dockwidget_2->GetScrolledWidget()){
+    dockwidget_2->RemoveWidget();
+  }
+  dockwidget_2->SetWidget(colorwidget_2.get());
+  return;
+ }
+ void OnHandleSpecularColor(const size_t& ind){
+   matnodewidget->MatSection()->SetMaterialSelect(MS_SPECULAR);
+  if(dockwidget_2->GetScrolledWidget()){
+    dockwidget_2->RemoveWidget();
+  }
+  dockwidget_2->SetWidget(colorwidget_2.get());
+  return;
+ }
+ void OnHandleTransparency(const float& value){
+  if(value>1.0f){
+    LoadMessage(tr(""),tr("Transparency value is greater than 1.0"));
+    return;
+  }
+  if(value<0.0){
+    LoadMessage(tr(""),tr("Transparency value is less than 0.0"));
+    return;
+  }
+  matnodewidget->MatSection()->Material().SetTransparency(value);
+
+  return;
+
+ }
+ void OnHandleRefractiveIndex(const float& value){
+ 
+  if(value<=0.0){
+    LoadMessage(tr(""),tr("Refractive value is less than 0.0"));
+    return;
+  }
+   matnodewidget->MatSection()->Material().SetRefractionIndex(value);
+  return;
+ }
+ void OnSpawnMatNodeWidget(bool value){
+  if(value){
+    if(dockwidget_1->GetScrolledWidget()){
+      dockwidget_1->RemoveWidget();
+    }
+    dockwidget_1->SetWidget(matnodewidget.get());
+  }
+  else{
+   if(dockwidget_1->GetScrolledWidget()==matnodewidget.get()){
+    dockwidget_1->RemoveWidget();
+    dockwidget_2->RemoveWidget();
+   }
+  }
+  return;
+ }
+ void OnSetMatNodeValue(){
+  matnodewidget->MatSection()->SetColor(colorwidget_2->GetChosenColor());
+  return;
+ }
+
 };
 
 

@@ -88,30 +88,36 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
  if(output_data){
     std::vector<ShapeNodeData>shapeArray;
     shapeArray.resize(10);
-    if(!outputArray_1.empty()&& outputArray_2.empty()){
+    if(!outputArray_1.empty()){
      for(int i=0;i<outputArray_1.size();i++){
-        shapeArray.emplace_back(tr(""),outputArray_1.at(i).Data());
-     }
-     for(int i=0;outputArray_2.size();i++){
-        shapeArray.emplace_back(tr(""),outputArray_2.at(i).Data());
+        shapeArray.emplace_back(tr(""),outputArray_1.at(i).aspect(),outputArray_1.at(i).Data());
      }
     }
+    if(!outputArray_2.empty()){
+     for(int i=0;outputArray_2.size();i++){
+        shapeArray.emplace_back(tr(""),outputArray_2.at(i).aspect(),outputArray_2.at(i).Data());
+     }
+    }
+    
     if(shapeArray.empty()){
         LoadMessage(tr(""),tr("Shape Array is Empty"));
         return;
     }
+    
     output_data->SetData(shapeArray);
  }
  else{
     output_data=std::make_shared<VectorDataNode<ShapeNodeData>>(tr(""),tr(""));
     std::vector<ShapeNodeData>shapeArray;
     shapeArray.resize(10);
-    if(!outputArray_1.empty()&& outputArray_2.empty()){
+    if(!outputArray_1.empty()){
      for(int i=0;i<outputArray_1.size();i++){
-        shapeArray.emplace_back(tr(""),outputArray_1.at(i).Data());
+        shapeArray.emplace_back(tr(""),outputArray_1.at(i).aspect(),outputArray_1.at(i).Data());
      }
+    }
+    if(!outputArray_2.empty()){
      for(int i=0;outputArray_2.size();i++){
-        shapeArray.emplace_back(tr(""),outputArray_2.at(i).Data());
+        shapeArray.emplace_back(tr(""),outputArray_2.at(i).aspect(),outputArray_2.at(i).Data());
      }
     }
     if(shapeArray.empty()){

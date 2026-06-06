@@ -32,6 +32,7 @@ formlayout->addRow(tr("Distance:"),distanceEdit.get());
 vlayout->addLayout(formlayout.get());
 dialogButtons=make_unique<QDialogButtonBox>(QDialogButtonBox::Cancel|QDialogButtonBox::Ok);
 vlayout->addWidget(dialogButtons.get());
+ setSizeGripEnabled(true);
 setLayout(vlayout.get());
 connect(dialogButtons.get(),&QDialogButtonBox::rejected,this,&QDialog::reject);
 connect(dialogButtons.get(),&QDialogButtonBox::accepted,this,&QDialog::accept);

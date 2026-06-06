@@ -8,6 +8,7 @@ class EdgeMenu:public QMenu{
 std::unique_ptr<QAction> convertAction;
 std::unique_ptr<QAction> convertToFaceAction;
 std::unique_ptr<QAction> convertToWireAction;
+std::unique_ptr<QAction> trimAction=std::make_unique<QAction>(tr("Should Trim"));
 std::unique_ptr<QAction> filletAction=std::make_unique<QAction>(tr("Apply Fillet"));
 EdgeMenu():QMenu(){
     showInfoAction=std::make_unique<QAction>(tr("Show Info"),nullptr);
@@ -18,8 +19,10 @@ EdgeMenu():QMenu(){
     convertToWireAction->setCheckable(true);
     convertAction->setCheckable(true);
     convertToFaceAction->setCheckable(true);
+    trimAction->setCheckable(true);
     addAction(showInfoAction.get());
     addAction(convertAction.get());
+    addAction(trimAction.get());
     addAction(convertToFaceAction.get());
     addAction(convertToWireAction.get());
     addAction(filletAction.get());
@@ -124,6 +127,45 @@ void SetBoolValues(const bool& value_1,const bool& value_2,const bool& value_3){
   chooseFirstEdge->setChecked(value_1);
   chooseSecondEdge->setChecked(value_2);
   chooseVertex->setChecked(value_3);
+  return;
+}
+};
+
+class TrimMenu:public QMenu{
+private:
+std::unique_ptr<QAction> firstpoint;
+std::unique_ptr<QAction> secondpoint;
+std::unique_ptr<QAction> Trim;
+std::unique_ptr<QAction> endTrimOps;
+
+public:
+TrimMenu(){
+ firstpoint=make_unique<QAction>(tr("Choose First Point"));
+ firstpoint->setCheckable(true);
+ secondpoint=make_unique<QAction>(tr("Choose Second Point"));
+ secondpoint->setCheckable(true);
+ Trim=std::make_unique<QAction>(tr("Trim"));
+ endTrimOps=std::make_unique<QAction>(tr("End Trim Operations"));
+ addAction(firstpoint.get());
+ addAction(secondpoint.get());
+ addAction(Trim.get());
+ addAction(endTrimOps.get());
+}
+QAction* First() const{
+  return firstpoint.get();
+}
+QAction* EndOps() const{
+  return endTrimOps.get();
+}
+QAction* Second() const{
+  return secondpoint.get();
+}
+QAction* TrimAction() const{
+  return Trim.get();
+}
+void SetValues(bool first,bool second){
+  firstpoint->setChecked(first);
+  secondpoint->setChecked(second);
   return;
 }
 };

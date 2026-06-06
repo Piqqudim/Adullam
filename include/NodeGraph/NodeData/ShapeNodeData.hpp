@@ -16,6 +16,12 @@ class ShapeNodeData:public NodeData{
  ShapeNodeData(const QString& name=QString(""),const TopoDS_Shape& shape=TopoDS_Shape()):m_Name(name){
      m_Data=shape;
  }
+ ShapeNodeData(const QString& name,const Graphic3d_MaterialAspect& mat,const TopoDS_Shape& shape){
+  m_Name=name;
+  mat_aspect=mat;
+  m_Data=shape;
+  return;
+ }
  ShapeNodeData(const ShapeNodeData&& data){
   *this=std::move(data);
   return;

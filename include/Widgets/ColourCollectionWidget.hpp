@@ -125,7 +125,7 @@ void isChosen(size_t ind){
         if(!formlayout.get()){
             return;
         }
-        ChosenColor=static_cast<ColorPane*>(formlayout->itemAt(ind,QFormLayout::FieldRole)->widget())->GetOCColor();
+        ChosenColor=NC::colorarray[ind];
     
     
     emit GetSelectedColor();

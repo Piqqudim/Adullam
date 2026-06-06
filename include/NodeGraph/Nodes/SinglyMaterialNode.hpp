@@ -28,6 +28,12 @@ void SetMaterial(const Graphic3d_MaterialAspect& mat1){
    emit dataUpdated(0);
    return;
 }
+Graphic3d_MaterialAspect output() const{
+    return mat;
+}
+Graphic3d_MaterialAspect& Material(){
+    return mat;
+}
 unsigned int nPorts(PortType portType) const override{
     switch(portType){
         case PortType::In:{
@@ -39,6 +45,9 @@ unsigned int nPorts(PortType portType) const override{
        
     }
     return 0;
+}
+void OnUpdate(){
+    emit dataUpdated(0);
 }
 QString caption() const override{
     return tr("Singly Material Node");

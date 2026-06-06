@@ -6,6 +6,7 @@
 #include<TopoDS_Edge.hxx>
 #include<BRep_Tool.hxx>
 #include<QtCore/QString>
+#include<GeomAPI_ProjectPointOnCurve.hxx>
 #include<Standard_NoSuchObject.hxx>
 #include<Chfi2d_Builder.hxx>
 #include<InfoUtility.hpp>
@@ -37,6 +38,10 @@ namespace EDGE{
     }
     return QString("");
    }
+struct TrimParam{
+ double Umin;
+ double Umax;
+};
 inline QString EdgeIsOnSurface(const TopoDS_Edge& edge){
     BRepAdaptor_Curve curve(edge);
     if(curve.IsCurveOnSurface()){
@@ -125,6 +130,29 @@ inline QString EdgeIsOnSurface(const TopoDS_Edge& edge){
    return;
  
  
+ }
+ inline void OnGetParameterOnCurve(const TopoDS_Edge& edge,const gp_Pnt& pnt,double& pvalue){
+    double firstparameter;
+    double secondparameter;
+    Handle(Geom_Curve) curve=BRep_Tool::Curve(edge,firstparameter,secondparameter);
+    if(curve.IsNull()){
+      LoadMessage(QString(""),QString("Could not extract the underlying curve"));
+      return;
+    }
+  GeomAPI_ProjectPointOnCurve projector;
+  projector.Init(curve,firstparameter,secondparameter);
+  projector.Perform(pnt);
+  
+  try{
+   pvalue=projector.LowerDistanceParameter();
+  }
+  catch(const StdFail_NotDone& notdone){
+   LoadMessage(QString(""),QString("Failed to find the nearest parameter that project orthogonal to the curve at that point"));
+   return;
+  }
+
+
+    return;
  }
  inline void ChFiErrorHandler(const ChFi2d_ConstructionError& error,int& success){
   switch(error){

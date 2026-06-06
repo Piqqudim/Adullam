@@ -194,7 +194,16 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
    connect(objprswidget->Convert(),&QCheckBox::toggled,this,&Window_Frame::OnHandleMaterialNode);  
    connect(centralwidget_1.get(),&DrawingCentralWidget::EmitMaterial,this,&Window_Frame::OnHandleEmitMaterial);
    connect(centralwidget_1.get(),&DrawingCentralWidget::UnEmitMaterial,this,&Window_Frame::OnHandleUnEmitMaterial);
-   
+   connect(matnodewidget->MatSection()->checkBox.get(),QCheckBox::toggled,this,&Window_Frame::OnHandleMaterialNodeForMatNodeWidget);
+   connect(matnodewidget->MatSection()->diffuseColorPane.get(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnHandleDiffuseColor);
+   connect(matnodewidget->MatSection()->baseColorPane.get(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnHandleBaseColor);
+   connect(matnodewidget->MatSection()->emissiveColorPane.get(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnHandleEmissiveColor);
+   connect(matnodewidget->MatSection()->ambientColorPane.get(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnHandleAmbientColor);
+   connect(matnodewidget->MatSection()->specularColorPane.get(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnHandleSpecularColor);
+   connect(matnodewidget->MatSection()->transparencyEdit.get(),&DoubleEdit::GetValue,this,&Window_Frame::OnHandleTransparency);
+   connect(matnodewidget->MatSection()->refractiveIndexEdit.get(),&DoubleEdit::GetValue,this,&Window_Frame::OnHandleRefractiveIndex);
+   connect(centralwidget_1->createMaterialNode.get(),QAction::toggled,this,&Window_Frame::OnSpawnMatNodeWidget);
+   connect(colorwidget_2.get(),&ColorCollectionWidget::GetSelectedColor,this,&Window_Frame::OnSetMatNodeValue);
 }
 
 
