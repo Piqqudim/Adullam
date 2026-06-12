@@ -8,13 +8,22 @@ class ShapeNodeData:public NodeData{
     private:
     TopoDS_Shape m_Data;
      Graphic3d_MaterialAspect mat_aspect;
-   
+    
     QString m_Name;
     bool hasMaterial=true;  //ByDefault the object has no material
+    int Index=-1;
  public:
+  
+ ShapeNodeData(const Graphic3d_MaterialAspect& mat,const TopoDS_Shape& shape=TopoDS_Shape(),const int& ind=-1){
+     m_Data=shape;
+     Index=ind;
+     mat_aspect=mat;
+     return;
+ }
     //it belongs to this class and not to an object of Shape
  ShapeNodeData(const QString& name=QString(""),const TopoDS_Shape& shape=TopoDS_Shape()):m_Name(name){
      m_Data=shape;
+     return;
  }
  ShapeNodeData(const QString& name,const Graphic3d_MaterialAspect& mat,const TopoDS_Shape& shape){
   m_Name=name;
@@ -32,6 +41,13 @@ class ShapeNodeData:public NodeData{
  }
  TopoDS_Shape Data() const{
     return m_Data;
+ }
+ void SetIndex(const int& ind){
+  Index=ind;
+  return;
+ }
+ int index() const{
+  return Index;
  }
  void SetTransform(const gp_Trsf& trsf){
     m_Data.Location(trsf);
@@ -72,6 +88,7 @@ class ShapeNodeData:public NodeData{
    m_Data=shapedata.Data();
    SetAspect(shapedata.aspect());
    SetHasMaterial(shapedata.HasMaterial());
+   SetIndex(shapedata.index());
    return *this;
  }
 };

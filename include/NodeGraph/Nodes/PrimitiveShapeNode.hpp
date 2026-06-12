@@ -27,6 +27,7 @@ std::weak_ptr<MaterialNodeData> inputMaterial;
 public:
 TopoDS_Shape outputShape;
 Graphic3d_MaterialAspect material;
+int Index=-1;
 PrimitiveShapeNode(){
    return;
 }
@@ -99,6 +100,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         input_data=dynamic_pointer_cast<ShapeNodeData>(data);
         if(input_data.lock()){
             outputShape=input_data.lock()->Data();
+            Index=input_data.lock()->index();
 
         }
         break;
@@ -115,11 +117,13 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
    if(output_data){
     output_data->SetAspect(material);
     output_data->SetData(outputShape);
+    output_data->SetIndex(Index);
    }
    else{
     output_data=make_unique<ShapeNodeData>(tr(""));
      output_data->SetAspect(material);
     output_data->SetData(outputShape);
+    output_data->SetIndex(Index);
    }
    emit dataUpdated(0);
    return;

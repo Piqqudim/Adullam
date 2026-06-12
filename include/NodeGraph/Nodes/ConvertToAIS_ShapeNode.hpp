@@ -16,6 +16,7 @@ private:
 std::weak_ptr<ShapeNodeData> m_inputdata;
 std::shared_ptr<AIS_ShapeNodeData> m_outdata;
 Handle(CustomAIS_Shape) outputShape;
+int Index=-1;
 TopoDS_Shape Shape;
 public:
 ConvertToAIS_ShapeNode(){
@@ -76,13 +77,14 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
        if(portIndex==0){
         if(m_inputdata.lock()){
           Shape=m_inputdata.lock()->Data();
+          Index=m_inputdata.lock()->index();
         }     
                                                                    
     }
     if(m_outdata){
           if(outputShape){
             outputShape.Nullify();
-            outputShape=new CustomAIS_Shape(Shape);
+            outputShape=new CustomAIS_Shape(Index,Shape);
            
           }
         m_outdata->Nullify();
@@ -97,7 +99,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
     }
     else{
        m_outdata=std::make_shared<AIS_ShapeNodeData>(tr(""));
-       outputShape=new CustomAIS_Shape(Shape);
+       outputShape=new CustomAIS_Shape(Index,Shape);
        if(m_inputdata.lock()->HasMaterial()){
             outputShape->SetMaterialAspect(m_inputdata.lock()->aspect());
             outputShape->SetColor(m_inputdata.lock()->aspect().DiffuseColor());  //same as SetVisualAspect

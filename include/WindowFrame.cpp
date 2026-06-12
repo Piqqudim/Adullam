@@ -155,8 +155,8 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
    connect(centralwidget_1->ShowObjectInfo.get(),&QAction::triggered,this,&Window_Frame::OnShowObjectInfo);
    connect(centralwidget_1.get(),&DrawingCentralWidget:: OnEmitBoolValue,this,&Window_Frame::OnHandleFacePoint);
   
-   connect(centralwidget_1.get(),&DrawingCentralWidget::OnEmitFace,this,&Window_Frame::OnHandleFace);
-   connect(centralwidget_1.get(),&DrawingCentralWidget::OnEmitFaceBool,this,&Window_Frame::OnHandleFaceBool);
+   connect(centralwidget_1.get(),&DrawingCentralWidget::OnEmitFace,this,&Window_Frame::OnHandleFaceEmitted);
+   connect(centralwidget_1.get(),&DrawingCentralWidget::OnEmitFaceBool,this,&Window_Frame::OnHandleFaceBoolean);
    connect(FileActionMenu->openFolderAction.get(),&QAction::triggered,this,&Window_Frame::OnOpenCurrentFolder);
    connect(this,&Window_Frame::emitCurrentFolder,this,&Window_Frame::onHandleEmittedFolder);
    connect(nodewidget.get(),&NodeGraphWidget::emitCurrentFile,this,&Window_Frame::onWriteFileToPath);
@@ -204,6 +204,7 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
    connect(matnodewidget->MatSection()->refractiveIndexEdit.get(),&DoubleEdit::GetValue,this,&Window_Frame::OnHandleRefractiveIndex);
    connect(centralwidget_1->createMaterialNode.get(),QAction::toggled,this,&Window_Frame::OnSpawnMatNodeWidget);
    connect(colorwidget_2.get(),&ColorCollectionWidget::GetSelectedColor,this,&Window_Frame::OnSetMatNodeValue);
+   connect(centralwidget_1->findByIndexer.get(),&QAction::triggered,this,&Window_Frame::OnFindIndexer);
 }
 
 

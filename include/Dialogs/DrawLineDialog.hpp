@@ -14,7 +14,11 @@
 #include<gp_Dir.hxx>
 #include<gp_Ax1.hxx>
 #include<gp_Pnt.hxx>
+#include<gp_Ax2.hxx>
 #include<BRepBuilderAPI_MakeEdge.hxx>
+#include<ColorPane.hpp>
+
+#include<ColorDialog.hpp>
 using namespace std;
 class DrawLineDialog:public QDialog{
 private:
@@ -38,6 +42,8 @@ std::unique_ptr<QRadioButton> negInXButton;
 std::unique_ptr<QRadioButton> negInYButton;
 std::unique_ptr<QRadioButton> negInZButton;
 std::unique_ptr<QDialogButtonBox> dialogButtons;
+std::unique_ptr<ColorDialog> colorDialog;
+std::unique_ptr<ColorPane> lineColorPane;
 Handle(AIS_InteractiveContext) context;
 Handle(CustomAIS_Shape) lineShape;
 float pie;
@@ -46,7 +52,10 @@ float relativeAngle=0.0f; //specified in degrees,it has to be converted to radia
 float length=0.0;  // length..
 gp_Dir direction=gp_Dir(0.0,.0,1.0); // direction of draw
 gp_Ax1 axisOfRotation; //axis of rotation;
+gp_Ax2 faceAxis;
 gp_Pnt pointOfRotation;
+Quantity_Color output;
+bool isFace=false; //by default,it is false.....
 public:
 DrawLineDialog(QWidget* parent=nullptr):QDialog(parent){
     pie=3.14159265;
@@ -70,10 +79,15 @@ DrawLineDialog(QWidget* parent=nullptr):QDialog(parent){
     negInXButton=make_unique<QRadioButton>(tr("-X direction"));
     negInYButton=make_unique<QRadioButton>(tr("-Y direction"));
     negInZButton=make_unique<QRadioButton>(tr("-Z direction"));
+    lineColorPane=make_unique<ColorPane>(nullptr);
+    colorDialog=std::make_unique<ColorDialog>(nullptr);
+    colorDialog->SetTitle(tr("Line Color Dialog"));
     formLayout->addRow(tr("Length:"),lengthEdit.get());
+    formLayout->addRow(tr("Line Color:"),lineColorPane.get());
     vlayout->addLayout(formLayout.get());
     formLayout_1->addRow(tr("Relative Angle:"),relativeAngleEdit.get());
     vlayout->addLayout(formLayout_1.get());
+    
     vlayout_2->addWidget(inXButton.get());
     vlayout_2->addWidget(inYButton.get());
     vlayout_2->addWidget(inZButton.get());
@@ -93,11 +107,21 @@ DrawLineDialog(QWidget* parent=nullptr):QDialog(parent){
     if(okButton){
      connect(okButton,&QPushButton::clicked,this,&DrawLineDialog::OnHandleOk);      
     }
-    connect(relativeAngleEdit.get(),&DoubleEdit::GetValue,this,&DrawLineDialog:: OnGetValueFromRelativeAngleEdit);
+    connect(relativeAngleEdit.get(),&DoubleEdit::GetValue,this,&DrawLineDialog::OnGetValueFromRelativeAngleEdit);
     connect(lengthEdit.get(),&DoubleEdit::GetValue,this,&DrawLineDialog::OnGetValueFromLengthEdit);
     
-
-    connect(dialogButtons.get(),&QDialogButtonBox::rejected,this,&QDialog::reject);
+    connect(lineColorPane.get(),&ColorPane::IsDoubleClicked,this,&DrawLineDialog::IsClicked);
+    connect(colorDialog->ColorWidget(),&ColorCollectionWidget::GetSelectedColor,this,&DrawLineDialog::OnGetColor);
+    connect(dialogButtons.get(),&QDialogButtonBox::rejected,this,&DrawLineDialog::OnHandleCancel);
+    connect(xDirectButton.get(),&QRadioButton::toggled,this,&DrawLineDialog::isToggled);
+    connect(yDirectButton.get(),&QRadioButton::toggled,this,&DrawLineDialog::isToggled);
+    connect(zDirectButton.get(),&QRadioButton::toggled,this,&DrawLineDialog::isToggled);
+    connect(inXButton.get(),&QRadioButton::toggled,this,&DrawLineDialog::isToggled);
+    connect(inYButton.get(),&QRadioButton::toggled,this,&DrawLineDialog::isToggled);
+    connect(inZButton.get(),&QRadioButton::toggled,this,&DrawLineDialog::isToggled);
+    connect(negInXButton.get(),&QRadioButton::toggled,this,&DrawLineDialog::isToggled);
+    connect(negInYButton.get(),&QRadioButton::toggled,this,&DrawLineDialog::isToggled);
+    connect(negInZButton.get(),&QRadioButton::toggled,this,&DrawLineDialog::isToggled);
     vlayout->addWidget(dialogButtons.get());
     setLayout(vlayout.get());
     setSizeGripEnabled(true);
@@ -107,9 +131,14 @@ void SetPointOfRotation(const gp_Pnt& pnt){
     pointOfRotation=pnt;
     return;
 }
+
+
 void SetContext(Handle(AIS_InteractiveContext) con){
     context=con;
     return;
+}
+Quantity_Color OutputColor() const{
+    return output;
 }
 void OnDisplay(){
     if(!context){
@@ -128,18 +157,20 @@ void OnDisplay(){
     dir.Rotate(axis,ang);
     TopoDS_Edge edge;
     BRepBuilderAPI_MakeEdge edgeMaker;
-    Handle(Geom_Line) line=new Geom_Line(SetPointOfRotation,dir);
+    Handle(Geom_Line) line=new Geom_Line(pointOfRotation,dir);
     edgeMaker.Init(line,0,Length());
     if(!edgeMaker.IsDone()){
         return;
     }
     if(lineShape.IsNull()){
       lineShape=new CustomAIS_Shape(edgeMaker.Edge());
+      lineShape->SetColor(output);
       context->Display(lineShape,true);
       return;
     }
     if(context->IsDisplayed(lineShape)){
         lineShape->SetShape(edgeMaker.Edge());
+        lineShape->SetColor(output);
         context->Redisplay(lineShape,true);
     }
      return; 
@@ -147,6 +178,7 @@ void OnDisplay(){
 gp_Dir Direction() const{
     return direction;
 }
+
 float Angle() const{
     return relativeAngle;
 }
@@ -189,11 +221,35 @@ void DetermineValue(){
 signals:
 void OnEmitDone();
 public slots:
+void isToggled(bool value){
+    OnDisplay();
+    return;
+}
+void OnHandleCancel(){
+     if(lineShape){
+    context->Remove(lineShape,true);
+    }
+    reject();
+    return;
+}
 void OnHandleOk(){
     //this gets the relative angles,length,axis of rotation
    DetermineValue();
     emit OnEmitDone();
+    if(lineShape){
+    context->Remove(lineShape,true);
+    }
     accept();
+    return;
+}
+void IsClicked(const size_t& index){
+    colorDialog->exec();
+    return;
+}
+void OnGetColor(){
+    output=colorDialog->ColorWidget()->GetChosenColor();
+    lineColorPane->SetColorFromOC(output);
+    OnDisplay();
     return;
 }
 void OnGetValueFromLengthEdit(const float& value){
@@ -207,4 +263,8 @@ void OnGetValueFromRelativeAngleEdit(const float& value){
     return;
 }
 };
+
+
+
+
 

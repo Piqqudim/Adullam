@@ -17,7 +17,7 @@ std::weak_ptr<DataArrayNode<5,ShapeNodeData>> InputShape_1;
 std::weak_ptr<DataArrayNode<5,ShapeNodeData>> InputShape_2;
 std::shared_ptr<VectorDataNode<ShapeNodeData>> output_shape;
 std::vector<ShapeNodeData> outputData;
-
+std::array<ShapeNodeData,10> shapearray;
 
 public:
 ArrayToVectorNode(){
@@ -68,9 +68,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
     if(!data.get()){
       return;
     }
-    if(!outputData.empty()){
-        outputData.clear();
-    }
+   
     switch(portIndex){
         case 0:{
              InputShape_1=std::dynamic_pointer_cast< DataArrayNode<5,ShapeNodeData>>(data);
@@ -78,7 +76,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
               
               for(int i=0;i<InputShape_1.lock()->Size();i++){
                  if(!InputShape_1.lock()->GetValueAt(i).Data().IsSame(TopoDS_Shape()))
-                 outputData.emplace_back(tr(""),InputShape_1.lock()->GetValueAt(i).aspect(),InputShape_1.lock()->GetValueAt(i).Data());
+                  shapearray[i]=InputShape_1.lock()->GetValueAt(i);
                  }
                  
              }
@@ -88,9 +86,10 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
       case 1:{
           InputShape_2=std::dynamic_pointer_cast< DataArrayNode<5,ShapeNodeData>>(data);
           if(InputShape_2.lock()){
+            int j=InputShape_2.lock()->Size();
              for(int i=0;i<InputShape_2.lock()->Size();i++){
                  if(!InputShape_2.lock()->GetValueAt(i).Data().IsSame(TopoDS_Shape()))
-                 outputData.emplace_back(tr(""),InputShape_2.lock()->GetValueAt(i).aspect(),InputShape_2.lock()->GetValueAt(i).Data());
+                   shapearray[i+j]=InputShape_2.lock()->GetValueAt(i);
                  }
           }
           std::cout<<"Second Array Set"<<"\n";
@@ -98,10 +97,26 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
       }
     }
     if(output_shape){
+        if(!outputData.empty()){
+            outputData.clear();
+        }
+        for(int i=0;i<shapearray.size();i++){
+            if(!shapearray.at(i).Data().IsSame(TopoDS_Shape())){
+                outputData.emplace_back(shapearray.at(i).aspect(),shapearray.at(i).Data(),shapearray.at(i).index());
+            }
+        }
        output_shape->SetData(outputData);
     }
     else{
       output_shape=std::make_shared<VectorDataNode<ShapeNodeData>>(tr(""));
+      if(!outputData.empty()){
+            outputData.clear();
+        }
+        for(int i=0;i<shapearray.size();i++){
+            if(!shapearray.at(i).Data().IsSame(TopoDS_Shape())){
+                outputData.emplace_back(shapearray.at(i).aspect(),shapearray.at(i).Data(),shapearray.at(i).index());
+            }
+        }
       output_shape->SetData(outputData);
     }
     emit dataUpdated(0);

@@ -1204,6 +1204,18 @@ void OnHandleSentShape(const TopoDS_Shape& shape){
   
   return;
 }
+void OnHandleFaceEmitted(const TopoDS_Face& face){
+  nodewidget->NodeInputShape=face;
+  nodewidget->shapedraw=SP_SHAPE;
+  
+  return;
+}
+void OnHandleFaceBoolean(bool value){
+  if(value==false){
+    nodewidget->shapedraw=SP_NULL;
+  }
+  return;
+}
 void OnHandleEmittedParentShape(const TopoDS_Shape& shape){
   if(!centralwidget_1){
     return;
@@ -1967,6 +1979,13 @@ void OnHandleBaseColor(const size_t& ind){
  void OnSetMatNodeValue(){
   matnodewidget->MatSection()->SetColor(colorwidget_2->GetChosenColor());
   return;
+ }
+ void OnFindIndexer(){
+   if(!centralwidget_1->ChosenShape){
+      return;
+   }
+   nodewidget->FindIndexerNode(centralwidget_1->ChosenShape->ID());
+   return;
  }
 
 };

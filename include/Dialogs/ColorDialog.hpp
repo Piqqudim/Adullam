@@ -37,6 +37,10 @@ ColorDialog(QWidget* parent=nullptr):QDialog(parent){
 ColorCollectionWidget* ColorWidget() const{
     return colorwidget.get();
 }
+void SetTitle(const QString& title){
+    setWindowTitle(title);
+    return;
+}
 void SetIsSpawned(bool value){
     isSpawned=value;
     return;

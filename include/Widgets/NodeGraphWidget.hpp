@@ -10,6 +10,7 @@
 #include<BasicGraphicsScene>
 #include<AllNodes.hpp>
 #include<TopoDS_Shape.hxx>
+#include<QtCore/QPoint>
 #include<QtWidgets/QMenu>
 #include <QtWidgets/QGraphicsObject>
 #include<QtGui/QMouseEvent>
@@ -72,6 +73,10 @@ enum AUTO_COMPILE_ACTION{  //this is the auto compilation action...
 ACT_NULL,
 ACT_ACTIVATE
 };
+enum POS_STATE{
+  PS_NULL,
+  PS_CHOSEN
+};
 
 enum VIEW_ACTION{
  VA_COPY,
@@ -113,8 +118,15 @@ std::unique_ptr<QAction> showIndex1=std::make_unique<QAction>(tr("Show Index"),n
 std::unique_ptr<QAction> unHighlightFaceAction=std::make_unique<QAction>(tr("Unhighlight"),nullptr);
 std::unique_ptr<QAction> setFalseAction=std::make_unique<QAction>(tr("Set To False"));
 std::unique_ptr<QAction> editAction=std::make_unique<QAction>(tr("Edit"));
+std::unique_ptr<QAction> selectPointAction=std::make_unique<QAction>(tr("Select Point For Indexer"));
+std::unique_ptr<QAction> indexAction=std::make_unique<QAction>(tr("Index Node Action"));
+std::unique_ptr<QMenu> indexMenu= std::make_unique<QMenu>();
+std::unique_ptr<QAction> showIndex2=std::make_unique<QAction>(tr("Show Assigned Index"));
+std::unique_ptr<QAction> IsEmpty=std::make_unique<QAction>(tr("Check Shape Status"));
+
 std::unique_ptr<MaterialEditorDialog> matDialog=std::make_unique<MaterialEditorDialog>();
 std::reference_wrapper<Handle(AIS_InteractiveContext)> context;
+
 DataFlowGraphModel* graph_model=nullptr;
 size_t CurrId=0;
 int CurrNodeId=-1;
@@ -128,7 +140,7 @@ NodeGraphicsObject* selectedNode=nullptr;
 float x=0.0;
 float y=0.0;
 float z=0.0;
-
+QPoint scenePos;
 gp_Trsf NodeInputTransform=gp_Trsf();
 TopoDS_Shape NodeInputShape=TopoDS_Shape();
 TopoDS_Face nodeInputFace=TopoDS_Face();
@@ -153,6 +165,7 @@ SinglyShapeNode* singleNode=nullptr;
 SinglyEdgeNode* edgeNode=nullptr;
 SinglyFaceNode* faceNode=nullptr;
 SinglyMaterialNode* matnode=nullptr;
+IndexNode* indexnode=nullptr;
 bool CanDrawPointNode=false;
 bool IsCubeNodeSet=false;
 bool IsFloatNodeSet=false;
@@ -161,6 +174,8 @@ bool isContentAdded=false;
 bool isCmdRendered=false;
 bool isRectDrawn=false;
 bool highlightFace=false;
+bool isPointSelected=false;
+POS_STATE pstate=PS_NULL;
 QString FileName; //this is currently the File name of our node graph
 QByteArray fileArray;
 int ShapeId=-1;
@@ -174,14 +189,16 @@ int sentId=-1;
 DragStatus dstatus=DS_NULL;
 QRect BoundRect; //For the rubber band selection
 std::vector<int> nodeIDs;
-
+int IndexCounter=0;
 NodeGraphWidget(QWidget* parent_widget,Handle(AIS_InteractiveContext)& context_1):GraphicsView(parent_widget),context{context_1}{
    Registry.reset(new NodeRegistry());
    //Register Model
  
    std::cout<<"I am in NodeGraphWidget Constructor"<<"\n";
-    
-  
+     selectPointAction->setCheckable(true);
+  indexAction->setMenu(indexMenu.get());
+  indexMenu->addAction(showIndex2.get());
+  indexMenu->addAction(IsEmpty.get());
   
    faceNodeMenu=std::make_unique<QMenu>();
    edgeNodeMenu=std::make_unique<QMenu>();
@@ -191,9 +208,11 @@ NodeGraphWidget(QWidget* parent_widget,Handle(AIS_InteractiveContext)& context_1
    edgeNodeMenu->addAction(deleteEdgeAction.get());
   faceNodeMenu->addAction(showIndex.get());
    edgeNodeMenu->addAction(showIndex1.get());
+   nodeSceneMenu->addAction(indexAction.get());
    nodeSceneMenu->addAction(setFalseAction.get());
    nodeSceneMenu->addAction(editAction.get());
-   Registry->registerModel<AdditionNode>("Operators");
+   nodeSceneMenu->addAction( selectPointAction.get());
+  
    Registry->registerModel<OutputNode>([this]()->std::shared_ptr<OutputNode>{
       auto ptr=make_shared<OutputNode>();
       QObject::connect(ptr.get(),&OutputNode::OnSendAIS_Shape,this,&NodeGraphWidget::OnReceiveAIS_Shape);
@@ -260,6 +279,7 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
    Registry->registerModel<FaceNode>(tr("Sub Shape"));
    Registry->registerModel<FuseNode>(tr("Boolean Operation"));
    Registry->registerModel<CutNode>(tr("Boolean Operation"));
+   Registry->registerModel<IndexNode>(tr("Indexing"));
     Registry->registerModel<CommonNode>(tr("Boolean Operation"));
     Registry->registerModel<SectionNode>(tr("Boolean Operation"));
    Registry->registerModel<TransformedShapeNode>(tr("Transform"));
@@ -308,6 +328,10 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
   connect(dragMenu->deleteNodes.get(),&QAction::triggered,this,&NodeGraphWidget::OnDeleteNodes);
   connect(setFalseAction.get(),QAction::triggered,this,&NodeGraphWidget::OnHandleSetFalse);
   connect(editAction.get(),&QAction::triggered,this,&NodeGraphWidget::OnHandleEdit);
+  connect(scene_1.get(),&DataFlowGraphicsScene::OnSendString,this,&NodeGraphWidget::OnHandleSentString);
+  connect(selectPointAction.get(),&QAction::toggled,this,&NodeGraphWidget::OnSetIsPointSelected);
+  connect(showIndex2.get(),&QAction::triggered,this,&NodeGraphWidget::OnShowIndexForIndexer);
+  connect(IsEmpty.get(),&QAction::triggered,this,&NodeGraphWidget::CheckShapeIsEmpty);
   return;
 }
 void OnFindSubFace(const int& parentindex,const int& childindex){
@@ -357,6 +381,53 @@ void OnFindSubFace(const int& parentindex,const int& childindex){
      return;
   
   return;
+}
+void FindIndexerNode(const int& ind){
+   auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+  if(!gscene){
+    emit SendMessage(tr("Failed To Cast To Scene"));
+    return;
+  }
+  bool isFound=false;
+    auto gmodel=gscene->GraphModel();
+     if(gmodel){
+      emit SendMessage(tr("Graph Model Created"));
+      std::cout<<"Graph Model Created Successfully"<<std::endl;
+     }
+     if(gmodel->Models().empty()){
+        LoadMessage(tr("Empty Model"),tr("The Model of the Node Graph is empty"));
+        return;
+     }
+     for(auto& ref:gscene->items()){
+        auto nodeObject=qgraphicsitem_cast<NodeGraphicsObject*>(ref);
+        if(nodeObject){
+          auto nodalShape=dynamic_cast<IndexNode*>(gmodel->Models().at(nodeObject->nodeId()).get());
+            if(nodalShape){
+               if(nodalShape->index()==ind){
+                isFound=true;
+                std::cout<<"Shape Found In GraphModel"<<std::endl;
+                if(!nodeObject->isSelected()){
+                  nodeObject->setSelected(true);
+                  nodeObject->update();
+                  }
+                  auto ndItem=qgraphicsitem_cast<QGraphicsItem*>(nodeObject);
+                  if(ndItem){
+                    centerOn(ndItem);
+                    gscene->update();
+                    updateSceneRect(gscene->sceneRect());
+                  }
+                
+                break;
+               }
+            }
+           
+        }
+     }
+     if(isFound==false){
+      LoadMessage(tr(""),tr("Indexer with this particular Index not found"));
+     }
+     return;
+  
 }
 void OnFindSinglyShape(){
   auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
@@ -510,12 +581,16 @@ void wheelEvent(QWheelEvent* event) override{
 void mousePressEvent(QMouseEvent* event) override{
   GraphicsView::mousePressEvent(event);
   if(event->button()==Qt::RightButton){
-   
+    if(isPointSelected){
+      scenePos=event->pos();
+      pstate=PS_CHOSEN;
+    }
     return;
   }
   if(event->button()==Qt::LeftButton){
     receivedShape=nullptr;
      matnode=nullptr;
+     indexnode=nullptr;
   if(dstatus==DS_DRAG){
    setDragMode(QGraphicsView::RubberBandDrag);
      return;
@@ -1013,6 +1088,10 @@ void mousePressEvent(QMouseEvent* event) override{
               if(matnode){
                 return;
               }
+              indexnode=dynamic_cast<IndexNode*>(gmodel->Models().at(nodeObject->nodeId()).get());
+              if(indexnode){
+                return;
+              }
              }
            }
            return;
@@ -1135,6 +1214,7 @@ void emitExistingFile(const QString& str);
 void CmdIsRendered();
 void EmitParentChildIndex(const int& p,const int& c);
 void EmitFaceParentChildIndex(const int& p,const int& c);
+
 //public slots
 public slots:
 void OnReceiveAIS_Shape(const Handle(CustomAIS_Shape)& shape){
@@ -1605,6 +1685,69 @@ void OnHandleEdit(){
   matDialog->SetMatNode(matnode);
   matDialog->exec();
   return;
+}
+void OnHandleSentString(const QString& str){
+  if(pstate==PS_NULL){
+    LoadMessage(tr(""),tr("No position for index node is chosen"));
+    return;
+  }
+ auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+       if(!gscene){
+        return;
+       }
+       size_t nodeId = gscene->GraphModel()->addNode(str); 
+      if(nodeId!= InvalidNodeId){
+       gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(scenePos));
+       auto shape_node=dynamic_cast<IndexNode*>(gscene->GraphModel()->Models().at(nodeId).get());
+       if(shape_node){
+         shape_node->SetIndex(IndexCounter);
+         ++IndexCounter;
+          std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
+          if(ngo){
+             ngo->setVisible(true);
+             ngo->update();
+              gscene->update();
+              updateSceneRect(gscene->sceneRect());
+              cout<<"Node Initiated Successfully"<<std::endl;
+          }
+          pstate=PS_NULL;
+       }
+       else{
+        std::cout<<"Failed to Initialize Index node"<<std::endl;
+       }
+
+    }
+  
+    
+
+  return;
+}
+void OnSetIsPointSelected(bool value){
+  if(value){
+    LoadMessage(tr(""),tr("Right Click with the mouse to obtain position for index node"));
+    isPointSelected=value;
+  }
+  else{
+    isPointSelected=value;
+  }
+  return;
+}
+void OnShowIndexForIndexer(){
+  if(indexnode){
+    LoadMessage(tr(""),QString("Indexer's Index: ")+QString::number(indexnode->index()));
+    
+  }
+  return;
+}
+void CheckShapeIsEmpty(){
+  if(indexnode){
+    if(indexnode->GetShape().IsSame(TopoDS_Shape())){
+      LoadMessage(tr(""),tr("Shape Is Empty"));
+    }
+    else{
+      LoadMessage(tr(""),tr("Shape Is Not Empty"));
+    }
+  }
 }
 
 /*void OnUpdateNodeModel(const QVariant&  value){

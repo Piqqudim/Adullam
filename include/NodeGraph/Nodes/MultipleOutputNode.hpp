@@ -54,7 +54,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
     shapes.reserve(input_shape.lock()->Size()+1); //to avoid reallocation
     for(int i=0;i<input_shape.lock()->Size();i++){
         if(!input_shape.lock()->GetValue(i).Data().IsSame(TopoDS_Shape())){
-        customShape=new CustomAIS_Shape(input_shape.lock()->Data()[i].Data());
+        customShape=new CustomAIS_Shape(input_shape.lock()->Data()[i].index(),input_shape.lock()->Data()[i].Data());
         if(input_shape.lock()->Data()[i].HasMaterial()){
             customShape->SetMaterialAspect(input_shape.lock()->Data()[i].aspect());
             customShape->SetColor(input_shape.lock()->Data()[i].aspect().DiffuseColor());

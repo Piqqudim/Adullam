@@ -76,7 +76,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         shapedata.clear();
        }
         for(int i=0;i<shape_1.lock()->Size();i++){
-            shapedata.emplace_back(tr(""),shape_1.lock()->GetValue(i).aspect(),shape_1.lock()->GetValue(i).Data());
+            shapedata.emplace_back(shape_1.lock()->GetValue(i).aspect(),shape_1.lock()->GetValue(i).Data(),shape_1.lock()->GetValue(i).index());
         }
     }
     break;
@@ -98,11 +98,11 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         return;
      }
      for(int i=0;i<shapedata.size();i++){
-        shapeVector.emplace_back(tr(""),shapedata.at(i).aspect(),shapedata.at(i).Data());
+        shapeVector.emplace_back(shapedata.at(i).aspect(),shapedata.at(i).Data(),shapedata.at(i).index());
 
      }
      for(int i=0;i<shapearray.size();i++){
-        shapeVector.emplace_back(tr(""),shapearray[i].aspect(),shapearray[i].Data());
+        shapeVector.emplace_back(shapearray[i].aspect(),shapearray[i].Data(),shapearray[i].index());
 
      }
      output_data->SetData(shapeVector);
@@ -115,11 +115,11 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         return;
      }
      for(int i=0;i<shapedata.size();i++){
-        shapeVector.emplace_back(tr(""),shapedata.at(i).aspect(),shapedata.at(i).Data());
+        shapeVector.emplace_back(shapedata.at(i).aspect(),shapedata.at(i).Data(),shapedata.at(i).index());
 
      }
      for(int i=0;i<shapearray.size();i++){
-        shapeVector.emplace_back(tr(""),shapearray[i].aspect(),shapearray[i].Data());
+        shapeVector.emplace_back(shapearray[i].aspect(),shapearray[i].Data(),shapearray[i].index());
 
      }
      output_data->SetData(shapeVector);

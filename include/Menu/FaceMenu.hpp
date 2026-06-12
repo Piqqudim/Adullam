@@ -17,7 +17,7 @@ FaceMenu():QMenu(){
     convertAction=std::make_unique<QAction>(tr("Convert To Face Node"),nullptr);
     convertAction->setCheckable(true);
     searchAction=std::make_unique<QAction>(tr("Find In NodeGraph"),nullptr);
-    DrawAction=std::make_unique<QAction>(tr("Draw Polygons"),nullptr);
+    DrawAction=std::make_unique<QAction>(tr("Draw Line"),nullptr);
     assumeFaceNormal=std::make_unique<QAction>(tr("Assume Face Normal"),nullptr);
     applyFillet=std::make_unique<QAction>(tr("Apply Fillet"));
     applyFillet->setCheckable(true);
@@ -80,4 +80,5 @@ ApplyChamferMenu(){
     addAction(endChamferOps.get());
 }
 };
+
 

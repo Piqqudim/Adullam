@@ -68,6 +68,8 @@
 #include<SweepNode.hpp>
 #include<SinglyAxisNode.hpp>
 #include<SinglyMaterialNode.hpp>
+#include<IndexNode.hpp>
+
 
 
 

@@ -60,10 +60,11 @@ enum ERROR_TYPE{
 class CustomAIS_Shape:public AIS_ColoredShape{
 
 public:
-size_t UniqueId=0;    
+int UniqueId=-1;    
 bool IsACopy=false;  
 bool hasMaterial=false; //by default the object does not have any material
 bool ColorIsSet=false;
+Graphic3d_MaterialAspect material;
 Quantity_Color initialColor;
 gp_Trsf initialTrsf; //compounded transformation
 TopoDS_Shape trans_shape; //transformed shape used in construction of the selected or detected shape
@@ -77,6 +78,20 @@ CustomAIS_Shape(const TopoDS_Shape& theshape):AIS_ColoredShape(theshape){
   TopExp::MapShapes(Shape(),TopAbs_EDGE,edgeMap);
   SetVisualAspect(Quantity_NOC_RED2);
   trans_shape=theshape;
+}
+CustomAIS_Shape(const int& index,const TopoDS_Shape& shape):AIS_ColoredShape(shape){
+  TopExp::MapShapes(Shape(),TopAbs_FACE,faceMap);
+  TopExp::MapShapes(Shape(),TopAbs_EDGE,edgeMap);
+  SetVisualAspect(Quantity_NOC_RED2);
+  UniqueId=index;
+  return;
+}
+int ID() const{
+  return UniqueId;
+}
+void SetID(const int& id){
+  UniqueId=id;
+  return;
 }
 
 bool AcceptDisplayMode(const Standard_Integer theMode) const override{
@@ -150,7 +165,11 @@ void SetVisualAspect(const Quantity_Color& color=Quantity_Color(),const VISUAL_A
    InitColor(color);
    return;
 }
+Graphic3d_MaterialAspect Mat() const{
+  return material;
+}
 void SetMaterialAspect(const Graphic3d_MaterialAspect& mat){
+  material=mat;
   SetMaterial(mat);
   InitColor(mat.DiffuseColor()); //always set to diffuse color;
   return;

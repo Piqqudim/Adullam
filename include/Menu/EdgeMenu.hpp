@@ -10,6 +10,7 @@ std::unique_ptr<QAction> convertToFaceAction;
 std::unique_ptr<QAction> convertToWireAction;
 std::unique_ptr<QAction> trimAction=std::make_unique<QAction>(tr("Should Trim"));
 std::unique_ptr<QAction> filletAction=std::make_unique<QAction>(tr("Apply Fillet"));
+
 EdgeMenu():QMenu(){
     showInfoAction=std::make_unique<QAction>(tr("Show Info"),nullptr);
     convertAction=std::make_unique<QAction>(tr("Convert To Edge Node"),nullptr);
@@ -20,6 +21,7 @@ EdgeMenu():QMenu(){
     convertAction->setCheckable(true);
     convertToFaceAction->setCheckable(true);
     trimAction->setCheckable(true);
+    
     addAction(showInfoAction.get());
     addAction(convertAction.get());
     addAction(trimAction.get());
@@ -108,6 +110,11 @@ unique_ptr<QAction> chooseFirstEdge;
 unique_ptr<QAction> chooseSecondEdge;
 unique_ptr<QAction> chooseVertex;
 unique_ptr<QAction> selectRadius;
+unique_ptr<QAction> buildAction=std::make_unique<QAction>(tr("Build"));
+unique_ptr<QAction> endFilletOps=make_unique<QAction>(tr("End Fillet Operation"));
+std::unique_ptr<QAction> XOYplane=make_unique<QAction>(tr("XOY"));
+std::unique_ptr<QAction> YOZplane=make_unique<QAction>(tr("YOZ"));
+std::unique_ptr<QAction> ZOXplane=std::make_unique<QAction>(tr("ZOX"));
 FilletMenu(){
   chooseFirstEdge=make_unique<QAction>(tr("First Edge"));
   chooseFirstEdge->setCheckable(true);
@@ -116,10 +123,18 @@ FilletMenu(){
   chooseVertex=std::make_unique<QAction>(tr("Choose Vertex"));
   chooseVertex->setCheckable(true);
   selectRadius=make_unique<QAction>(tr("Select Radius"));
+  XOYplane->setCheckable(true);
+  YOZplane->setCheckable(true);
+  ZOXplane->setCheckable(true);
   addAction(chooseFirstEdge.get());
   addAction(chooseSecondEdge.get());
   addAction(chooseVertex.get());
   addAction(selectRadius.get());
+  addAction(buildAction.get());
+  addAction(XOYplane.get());
+  addAction(YOZplane.get());
+  addAction(ZOXplane.get());
+  addAction(endFilletOps.get());
   
   return;
 }
@@ -128,6 +143,13 @@ void SetBoolValues(const bool& value_1,const bool& value_2,const bool& value_3){
   chooseSecondEdge->setChecked(value_2);
   chooseVertex->setChecked(value_3);
   return;
+}
+void SetPlaneBool(bool value,bool value_1,bool value_2){
+  XOYplane->setChecked(value);
+  YOZplane->setChecked(value_1);
+  ZOXplane->setChecked(value_2);
+  return;
+  
 }
 };
 

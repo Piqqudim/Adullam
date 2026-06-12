@@ -22,6 +22,7 @@ SinglyMaterialNode* matnode=nullptr;
 
 public:
 MaterialEditorDialog(QWidget* parent=nullptr):QDialog(parent){
+    setWindowTitle(tr("Material Editor"));
     vlayout->setAlignment(Qt::AlignTop|Qt::AlignLeft);
     scrollarea->setWidget(matsection.get());
     vlayout->addWidget(scrollarea.get());
@@ -61,26 +62,31 @@ void OnHandleColorWidget(){
 }
 void OnHandleSpecularColor(const size_t& ind){
    matsection->SetMaterialSelect(MS_SPECULAR);
+   colorDialog->SetTitle(tr("Specular Color Dialog"));
    colorDialog->exec();
    return;
  }
 void OnHandleDiffuseColor(const size_t& ind){
    matsection->SetMaterialSelect(MS_DIFFUSE);
+   colorDialog->SetTitle(tr("Diffuse Color Dialog"));
    colorDialog->exec();
    return;
  }
  void OnHandleAmbientColor(const size_t& ind){
    matsection->SetMaterialSelect(MS_AMBIENT);
+   colorDialog->SetTitle(tr("Ambient Color Dialog"));
    colorDialog->exec();
    return;
  }
 void OnHandleEmissiveColor(const size_t& ind){
    matsection->SetMaterialSelect(MS_EMISSIVE);
+   colorDialog->SetTitle(tr("Emissive Color Dialog"));
    colorDialog->exec();
    return;
  }
  void OnHandleBaseColor(const size_t& ind){
    matsection->SetMaterialSelect(MS_BASE);
+   colorDialog->SetTitle(tr("Base Color Dialog"));
    colorDialog->exec();
    return;
  }

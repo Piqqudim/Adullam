@@ -98,6 +98,9 @@
 #include<DrawPolygonDialog.hpp>
 #include<FilletDialog.hpp>
 #include<ChamferDialog.hpp>
+#include<FaceLineDialog.hpp>
+#include<ChFi2d_FilletAPI.hxx>
+#include<WireMenu.hpp>
 //This file will enter 10,000 LOC
 //We have to create a dialog for viewport setting,Drawing widget is also a viewport
 //On Object Creation,deletion,editing,Transform
@@ -115,7 +118,8 @@ enum SELECTED_STATE{
   SELECT,
   NULL_SELECT,
   EDGE_SELECT,
-  FACE_SELECT
+  FACE_SELECT,
+  WIRE_SELECT
 };
 enum DRAWCURVE{
 DC_NULL,
@@ -125,7 +129,8 @@ DC_SPLINE,
 DC_BEZIER,
 DC_ARC,
 DC_TRIM,
-DC_POLYGON
+DC_POLYGON,
+DC_FILLET
 };
 enum GP_STATE{
  GPS_GATHER,
@@ -196,6 +201,7 @@ QAction* TranslateAction=nullptr;
 std::unique_ptr<QAction> ShapeTypeAction;
 QAction* ShapePrsAction=nullptr;
 std::unique_ptr<DrawLineDialog> drawLineDialog;
+std::unique_ptr<FaceLineDialog> faceDialog;
 std::unique_ptr<QAction> ConstructPointNodeAction;
 std::unique_ptr<QAction> ConstructTransformNodeAction;
 std::unique_ptr<QAction> ConstructShapeNodeAction;
@@ -229,7 +235,11 @@ std::unique_ptr<QAction> copyTranslationAction=std::make_unique<QAction>(tr("Cop
 std::unique_ptr<QAction> polygonAction=std::make_unique<QAction>(tr("Draw Polygon"));
 std::unique_ptr<QAction> copyMaterial=std::make_unique<QAction>(tr("Convert To Material Node"));
 std::unique_ptr<QAction> createMaterialNode=std::make_unique<QAction>(tr("Create Material Node"));
-
+std::unique_ptr<QAction> findByAction=std::make_unique<QAction>(tr("Find By"));
+std::unique_ptr<QMenu> findByMenu=std::make_unique<QMenu>(); 
+std::unique_ptr<QAction> findByIndexer=std::make_unique<QAction>(tr("Find By Index Node"));
+std::unique_ptr<QAction> findByShapeNode=std::make_unique<QAction>(tr("Find By Shape Node"));
+std::unique_ptr<QAction> commitChanges=std::make_unique<QAction>(tr("Commit Change"));
 std::unique_ptr<TransientPolygon> transPolygon;
 std::unique_ptr<TransientBezierCurve> transCurve;
 std::unique_ptr<TransientBSplineCurve> bspCurve;
@@ -240,6 +250,8 @@ std::unique_ptr<DrawPolygonMenu> drawPolyMenu=std::make_unique<DrawPolygonMenu>(
 std::unique_ptr<ApplyChamferMenu> chamferMenu=std::make_unique<ApplyChamferMenu>();
 std::unique_ptr<ApplyFilletMenu> filletMenu=std::make_unique<ApplyFilletMenu>();
 std::unique_ptr<TrimMenu> trimMenu=std::make_unique<TrimMenu>();
+std::unique_ptr<FilletMenu> edgeFilletMenu=std::make_unique<FilletMenu>();
+unique_ptr<WireMenu> wireMenu=std::make_unique<WireMenu>();
 bool IsShapePrsAdded=false;   //this is to keep track of whether shape presentation menu item has been added
  TopoDS_Face selFace;
  TopoDS_Edge selEdge;
@@ -337,7 +349,7 @@ size_t ChosenId=0;
 int faceIndex=-1; //invalid index
 int edgeIndex=-1;
 int ParentIndex=-1;
-TopoDS_Wire selWire;
+
 Quantity_Color chosenFaceColor;
 Quantity_Color chosenEdgeColor;
 Quantity_Color chosenVertexColor;
@@ -351,8 +363,11 @@ TopoDS_Shape SentShape=TopoDS_Shape();
 TopoDS_Shape selFaceShape=TopoDS_Shape();
 TopoDS_Wire loopwire=TopoDS_Wire();
 TopoDS_Edge chamferEdge=TopoDS_Edge();
+TopoDS_Edge filletEdge=TopoDS_Edge();
+TopoDS_Edge filletEdge_1=TopoDS_Edge();
 TopoDS_Vertex chamferVertex=TopoDS_Vertex();
 TopoDS_Vertex filletVertex=TopoDS_Vertex();
+TopoDS_Wire selWire=TopoDS_Wire();
 gp_Pnt trimFirstPoint;
 gp_Pnt trimSecondPoint;
 int mainIndex=-1;
@@ -360,7 +375,7 @@ int subMainIndex=-1;
 int SentShapeId=-1;
 GP_STATE gpsstate=GPS_NULL;
 public:
-DrawingCentralWidget(QWidget* parent_widget):QWidget(parent_widget){
+  DrawingCentralWidget(QWidget* parent_widget):QWidget(parent_widget){
     std::cout<<"I am in Drawing CentralWidget"<<"\n";
     setAttribute(Qt::WA_PaintOnScreen);
     setAttribute(Qt::WA_NoSystemBackground);
@@ -374,7 +389,7 @@ DrawingCentralWidget(QWidget* parent_widget):QWidget(parent_widget){
     show();
     convertPoint->setCheckable(true);
     drawLineDialog=std::make_unique<DrawLineDialog>(nullptr);
-    
+    faceDialog=std::make_unique<FaceLineDialog>();
     Shapes.reserve(100);   //maximum shapes in the scene to prevent rehashing
     edgeMenu=std::make_unique<EdgeMenu>();
     faceMenu=std::make_unique<FaceMenu>();
@@ -432,9 +447,11 @@ DrawingCentralWidget(QWidget* parent_widget):QWidget(parent_widget){
     GatherPointAction->setCheckable(true);
     FindAction=std::make_unique<QAction>(tr("Find In NodeGraph"));
     DeleteAction=new QAction(tr("Delete"),nullptr);
-    
+    findByAction->setMenu(findByMenu.get());
+    findByMenu->addAction(findByIndexer.get());
+    findByMenu->addAction(findByShapeNode.get());
     SelectedMenu->addAction(DeleteAction);
-    SelectedMenu->addAction(SelectAction);
+    SelectedMenu->addAction(findByAction.get());
     SelectedMenu->addAction(UndoAction);
     SelectedMenu->addAction(RedoAction);
     SelectedMenu->addAction(ScaleAction);
@@ -493,6 +510,7 @@ DrawingCentralWidget(QWidget* parent_widget):QWidget(parent_widget){
  //Now to generate an id that can embed Qt project  
  context=new AIS_InteractiveContext(Viewer);
  drawLineDialog->SetContext(context);
+ faceDialog->SetContext(context);
  transPolygon=std::make_unique <TransientPolygon>(std::ref(context));
  
  transCurve=make_unique<TransientBezierCurve>(std::ref(context));
@@ -559,6 +577,7 @@ view->MustBeResized();
  connect(GatherBSplineAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnGatherBSpline);
  connect(spMenu->deleteAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnDeleteBSplinePoint);
  connect(FindAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleSent);
+ connect(findByShapeNode.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleSent);
  connect(CheckShapeIdAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnKnowId);
  connect(convertPoint.get(),&QAction::toggled,this,&DrawingCentralWidget::OnSendPointValues);
  connect(pointMenu->DeleteAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnDestroyMarker);
@@ -606,10 +625,23 @@ view->MustBeResized();
  connect(copyMaterial.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleCopyMaterial);
  connect(edgeMenu->trimAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleTrim);
  connect(trimMenu->TrimAction(),&QAction::triggered,this,&DrawingCentralWidget::OnTrimCurve);
- connect(trimMenu->EndOps(),&QAction::triggerred,this,&DrawingCentralWidget::OnEndTrim);
+ connect(trimMenu->EndOps(),&QAction::triggered,this,&DrawingCentralWidget::OnEndTrim);
+ connect(faceDialog.get(),&FaceLineDialog::Done,this,&DrawingCentralWidget::OnHandleFaceDone);
+ connect(faceMenu->DrawAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleFaceDrawAction);
+ connect(edgeMenu->filletAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnSetToFillet);
+ connect(edgeFilletMenu->chooseFirstEdge.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleFirstEdge);
+ connect(edgeFilletMenu->chooseSecondEdge.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleSecondEdge);
+ connect(edgeFilletMenu->chooseVertex.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleChosenFilletVertex);
+ connect(edgeFilletMenu->selectRadius.get(),&QAction::triggered,this,&DrawingCentralWidget::OnSelectRadiusForFillet);
+ connect(edgeFilletMenu->buildAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnApplyFilletToEdges);
+ connect(edgeFilletMenu->endFilletOps.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleEndOps);
+ connect(wireMenu->convertToNode.get(),&QAction::toggled,this,&DrawingCentralWidget::OnConvertToWireNode);
+ connect(wireMenu->applyFillet.get(),&QAction::triggered,this,&DrawingCentralWidget::ApplyFilletToWire);
+ connect(wireMenu->chooseVertex.get(),&QAction::triggered,this,&DrawingCentralWidget::OnChooseVertexForWire);
+ connect(wireMenu->chooseRadius.get(),&QAction::triggered,this,&DrawingCentralWidget::OnSelectRadiusForFillet);
 
 }
-
+  
 void OnHighlight(Handle(CustomAIS_Shape)& cshape,const TopoDS_Shape& selshape,const int& mode){
   if(!cshape){
      return;
@@ -1140,17 +1172,25 @@ void DisplayObject(const Handle(CustomAIS_Shape)& object){
   if(context.IsNull()){
     return;
   }
-     if(!Shapes.empty()){
-      Shapes.clear();
-       objectCount=0;
-} 
-   objectCount=0;
-   context->RemoveAll(false);
-   context->Display(viewcube,false);
-   context->Display(object,CurrentShadeMode,CurrentSelMode,false);
-   Shapes.insert(std::pair<size_t,Handle(CustomAIS_Shape)>(objectCount,object));
-   ++objectCount;
-   view->Redraw();
+  if(Shapes.find(object->ID())!=Shapes.end()){
+    Shapes.at(object->ID())->SetShape(object->Shape()); 
+    Shapes.at(object->ID())->SetMaterialAspect(object->Mat());
+    context->Redisplay(Shapes.at(object->ID()),true);
+  }
+  else{
+    if(object->ID()==-1){
+      LoadMessage(tr("Invalid ID"),tr("There is no assigned index"));
+      return;
+    }
+    if(object->Shape().IsSame(TopoDS_Shape())){
+      LoadMessage(tr(""),tr("Sent Shape Is Empty"));
+      return;
+    }
+    Shapes[object->ID()]=object;
+    Shapes.at(object->ID())->SetID(object->ID());
+    context->Display(Shapes.at(object->ID()),true);
+
+  }
     return;
 }
   /*
@@ -1160,26 +1200,29 @@ void DisplayObject(const Handle(CustomAIS_Shape)& object){
   */
  void DisplayObjects(const std::vector<Handle(CustomAIS_Shape)>& shapes){
   if(shapes.empty()){
+    LoadMessage(tr(""),tr("There are/is no loaded shape(s) from NodeGraph"));
     return;
   }
-  if(!Shapes.empty()){
-    for(auto iter=Shapes.begin();iter!=Shapes.end();++iter){
-      context->Remove(iter->second,false);
-    }
-    Shapes.clear();
-   
   
-}
    
-  objectCount=0;
+ 
    if(context->IsDisplayed(viewcube)){
     context->Redisplay(viewcube,false);
    }
   for(const auto& shape: shapes){
-        context->Display(shape,CurrentShadeMode,CurrentSelMode,false);
-        Shapes.insert(std::pair<size_t,Handle(CustomAIS_Shape)>(objectCount,shape));
-        ++objectCount;
-      
+   if(Shapes.find(shape->ID())!=Shapes.end()){
+
+   Shapes.at(shape->ID())->SetShape(shape->Shape()); 
+    Shapes.at(shape->ID())->SetMaterialAspect(shape->Mat());
+    context->Redisplay(Shapes.at(shape->ID()),false);
+   }
+   else{
+    if(shape->ID()!=-1){
+    Shapes[shape->ID()]=shape;
+    Shapes.at(shape->ID())->SetID(shape->ID());
+    context->Display(Shapes.at(shape->ID()),false);
+    }
+   }
   }
   view->Redraw();
 
@@ -1587,6 +1630,43 @@ void mousePressEvent(QMouseEvent* event) override{
     
     context->InitSelected();
     while(context->MoreSelected()){
+      if(CurrentSelMode==3){
+         Handle(SelectMgr_EntityOwner) owner=context->SelectedOwner();
+        if(!owner){
+          LoadMessage(tr(""),tr("Failed To Cast to Wire(Loop)"));
+          return;
+        }
+        Handle(StdSelect_BRepOwner) entity=Handle(StdSelect_BRepOwner)::DownCast(owner);
+         if(!entity){
+          LoadMessage(tr(""),tr("Failed To Cast to Point"));
+          return;
+        }
+         Handle(AIS_InteractiveObject) obShape=Handle(AIS_InteractiveObject)::DownCast(owner->Selectable());
+        if(!obShape){
+          cout<<"Failed To Cast"<<"\n";
+          return;
+        } 
+        selShape=Handle(CustomAIS_Shape)::DownCast(obShape);
+        
+        if(!owner){
+           std::cout<<"Failed To Cast To an object of SelectMgr_EntityOwner"<<"\n";
+          return;
+        }
+        TopoDS_Shape entShape=entity->Shape();
+        if(entShape.ShapeType()!=TopAbs_WIRE){
+            LoadMessage(tr(""),tr("The Selected Shape is not a wire(loop)"));
+            return;
+        }
+        selWire=TopoDS::Wire(entShape);
+        if(selWire.IsNull()){
+          LoadMessage(tr(""),tr("Cannot Cast to wire"));
+          return;
+        }
+        auto pnt=context->MainSelector()->PickedPoint(1);
+        LineStartPoint=pnt;
+        st1=WIRE_SELECT;
+        return;
+      }
      if(CurrentSelMode==1){
         Handle(SelectMgr_EntityOwner) owner=context->SelectedOwner();
         if(!owner){
@@ -1640,6 +1720,7 @@ void mousePressEvent(QMouseEvent* event) override{
         Handle(AIS_InteractiveObject) obShape=Handle(AIS_InteractiveObject)::DownCast(owner->Selectable());
         if(!obShape){
           cout<<"Failed To Cast"<<"\n";
+          return;
         } 
         selShape=Handle(CustomAIS_Shape)::DownCast(obShape);
         
@@ -1756,7 +1837,14 @@ void mousePressEvent(QMouseEvent* event) override{
         }
         selFaceShape=selectedEntity->Shape();
         chamferEdge=TopoDS::Edge(selectedEntity->Shape());
-       
+        if(edgeFilletMenu->chooseFirstEdge->isChecked()){
+        filletEdge=chamferEdge;
+        std::cout<<"First Edge Chosen"<<endl;
+        }
+        if(edgeFilletMenu->chooseSecondEdge->isChecked()){
+        filletEdge_1=chamferEdge;
+        std::cout<<"Second Edge Chosen"<<endl;
+        }
         st1=EDGE_SELECT;
          gp_Pnt selectedPoint=context->MainSelector()->PickedPoint(1);
          LineStartPoint=selectedPoint;
@@ -1858,6 +1946,14 @@ void mousePressEvent(QMouseEvent* event) override{
    
 
 else if(event->button()==Qt::RightButton){
+  if(st1==WIRE_SELECT){
+    wireMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
+  if(dc==DC_FILLET){
+    edgeFilletMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
   if(dc==DC_TRIM){
     trimMenu->exec(event->globalPosition().toPoint());
     return;
@@ -2828,12 +2924,54 @@ void InitializeDrawDialog(){
   }
   return;
 }
+void OnHandleFaceDrawAction(){
+  if(selFace.IsNull()){
+    LoadMessage(tr(""),tr("No Face is Selected"));
+    return;
+  }
+  auto dir=SURFACE::GetFaceNormal(selFace,selFacePoint);
+  faceDialog->InitAxis(selFacePoint,dir);
+  faceDialog->exec();
+  return;
+}
+void OnHandleFaceDone(){
+  if(!faceDialog){
+    LoadMessage(tr(""),tr("FaceLineDialog failed to be created"));
+    return;
+  }
+  const float pie=3.14159265;
+  gp_Ax1 axis=faceDialog->Axis();
+  float ang=faceDialog->Angle();
+  gp_Dir dir=faceDialog->Direction();
+  float val=faceDialog->Length();
+  float convertedAngle=ang*(pie/180.0f);
+  dir.Rotate(axis,convertedAngle);
+  
 
+  Handle(Geom_Line) line=new Geom_Line(faceDialog->PointOfInterest(),dir);
+  BRepBuilderAPI_MakeEdge edgemaker;
+  TopoDS_Edge edge;
+  edgemaker.Init(line,0,val);
+  if(!edgemaker.IsDone()){
+    LoadMessage(tr(""),tr("Failed To Create Line"));
+    return;
+  }
+  edge=edgemaker.Edge();
+  Handle(CustomAIS_Shape) lineShape=new CustomAIS_Shape(edge);
+  lineShape->SetColor(faceDialog->outputColor());
+   context->Display(lineShape,true);
+  return;
+
+
+
+  return;
+}
 void OnHandleDone(){
   if(!drawLineDialog){
      LoadMessage(tr(""),tr("DrawLineDialog failed to be created"));
      return;
   }
+  
   const float pie=3.14159265;
   gp_Ax1 axis=drawLineDialog->Axis();
   float ang=drawLineDialog->Angle();
@@ -2861,6 +2999,7 @@ void OnHandleDone(){
     return;
   }
   Handle(CustomAIS_Shape) lineShape=new CustomAIS_Shape(edge);
+  lineShape->SetColor(drawLineDialog->OutputColor());
   context->Display(lineShape,false);
   view->Redraw();
   return;
@@ -3155,11 +3294,8 @@ void BuildFillet(){
     return;
   }
   TopoDS_Face filletFace=filletBuilder->Result();
-  Handle(CustomAIS_Shape) faceShape=new CustomAIS_Shape(filletFace);
-  if(selShape){
-    context->Remove(selShape,false);
-  }
-  context->Display(faceShape,false);
+  selShape->SetShape(filletFace);
+  context->Redisplay(selShape,false);
   view->Redraw();
   return;
 }
@@ -3185,11 +3321,8 @@ void BuildChamfer(){
     return;
   }
   TopoDS_Face chamferedFace=chamferBuilder->Result();
-  Handle(CustomAIS_Shape) faceShape=new CustomAIS_Shape(chamferedFace);
-  if(selShape){
-    context->Remove(selShape,false);
-  }
-  context->Display(faceShape,false);
+  selShape->SetShape(chamferedFace);
+  context->Redisplay(selShape,false);
   view->Redraw();
   return;
 }
@@ -3233,7 +3366,8 @@ void OnHandleTrim(bool value){
   }
 }
 void OnEndTrim(){
-  dc=DC_EDGE;
+  dc=DC_NULL;
+  st1=EDGE_SELECT;
   return;
 }
 void OnTrimCurve(){
@@ -3276,7 +3410,175 @@ void OnTrimCurve(){
   
   return;
 }
+void OnHandleFirstEdge(bool value){
+  if(value){
+    context->Deactivate();
+    context->Activate(2); 
+    CurrentSelMode=2;
+    LoadMessage(tr(""),tr("Choose the first edge"));
+    edgeFilletMenu->SetBoolValues(value,false,false);
+  }
+  return;
+}
+void OnHandleSecondEdge(bool value){
+  if(value){
+    context->Deactivate();
+    context->Activate(2);
+    CurrentSelMode=2;
+    LoadMessage(tr(""),tr("Choose the second edge"));
+      edgeFilletMenu->SetBoolValues(false,value,false);
+  }
+  return;
+}
+void OnHandleChosenFilletVertex(bool value){
+  if(value){
+    LoadMessage(tr(""),tr("Choose the vertex \nHint:Choose the point of intersection of the two edge"));
+    context->Deactivate();
+    context->Activate(1); //for vertex;
+    CurrentSelMode=1;
+    edgeFilletMenu->SetBoolValues(false,false,value);
+  }
+  else{
+    context->Deactivate();
+    context->Activate(2);
+    CurrentSelMode=2;
+  }
+  return;
+}
+void OnSetToFillet(bool value){
+  if(value){
+    dc=DC_FILLET;
+  }
+  else{
+    dc=DC_NULL;
+  }
+  return;
+}
+void OnHandleEndOps(){
+  dc=DC_NULL;
+  edgeMenu->filletAction->setChecked(false);
+  return;
+}
+void OnApplyFilletToEdges(){
+   std::unique_ptr<ChFi2d_FilletAPI> filletAPI=make_unique<ChFi2d_FilletAPI>();
+   filletAPI->Init(filletEdge,filletEdge_1,gp_Pln(LineStartPoint,gp_Dir(0.0,0.0,1.0))); //on the xoy plane
+   if(filletDialog->Radius()<=0.0){
+    LoadMessage(tr(""),tr("Radius is less than or equal to zero"));
+    return;
+   }
+   if(!filletAPI->Perform(filletDialog->Radius())){
+      LoadMessage(tr(""),tr("Failed To Compute Fillet for selected edges"));
+      return;
+   }
+   int n=filletAPI->NbResults(LineStartPoint);
+   TopoDS_Edge Edge_1;
+   TopoDS_Edge Edge_2;
+   auto fi_edge=filletAPI->Result(LineStartPoint,Edge_1,Edge_2,n);
 
+   BRepBuilderAPI_MakeWire wiremaker;
+   wiremaker.Add(Edge_1);
+   wiremaker.Add(fi_edge);
+   wiremaker.Add(Edge_2);
+   
+   TopoDS_Wire wire;
+   if(!wiremaker.IsDone()){
+      LoadMessage(tr(""),tr("Failed to combine the edges"));
+      return;
+   }
+   wire=wiremaker.Wire();
+   Handle(CustomAIS_Shape) wireshape=new CustomAIS_Shape(wire);
+   gp_Trsf trsf;
+   trsf.SetTranslation(gp_Vec(LineStartPoint.X(),LineStartPoint.Y(),LineStartPoint.Z()));
+   context->SetLocation(wireshape,TopLoc_Location(trsf));
+   context->Display(wireshape,false);
+   view->Redraw();
+   
+
+
+   return;
+}
+void OnConvertToWireNode(bool value){
+   if(value){
+    if(!selWire.IsNull()){
+    emit OnEmitWire(selWire);
+    }
+    return;
+  }
+  else{
+   emit OnEmitFaceBool(value);
+  }
+}
+//for the fillet to be applied to wire,the wire must consist of two edges
+void ApplyFilletToWire(){
+  if(selWire.IsNull()){
+     LoadMessage(tr(""),tr("The Selected Wire is empty,failed to cast"));
+     return;
+  }
+  if(filletDialog->Radius()<=0.0000){
+    LoadMessage(tr(""),tr("Radius is less than or equal to zero"));
+    return; //to avoid unexpected results
+  }
+  TopExp_Explorer wireExplorer;
+  wireExplorer.Init(selWire,TopAbs_EDGE);
+  int i=0;
+  for(;wireExplorer.More();wireExplorer.Next()){
+    ++i;
+  }
+  if(i>2){
+    LoadMessage(tr(""),tr("Loop has more than two edges"));
+    return;
+  }
+  std::unique_ptr<ChFi2d_FilletAPI> filletAPI=std::make_unique<ChFi2d_FilletAPI>();
+  filletAPI->Init(selWire,gp_Pln());
+  if(!filletAPI->Perform(filletDialog->Radius())){
+    LoadMessage(tr(""),tr("Failed to perform fillet operation on the set of edges of the wire(loop)"));
+    return;
+  }
+  TopoDS_Edge edge;
+  TopoDS_Edge edge_1;
+  int n=filletAPI->NbResults(LineStartPoint);
+  auto fi_edge=filletAPI->Result(LineStartPoint,edge,edge_1,n);
+
+  BRepBuilderAPI_MakeWire wiremaker;
+  wiremaker.Add(edge);
+  wiremaker.Add(fi_edge);
+  wiremaker.Add(edge_1);
+
+  if(!wiremaker.IsDone()){
+     LoadMessage(tr(""),tr("Failed to Build Loop from edges after fillet operation"));
+     return;
+  }
+  if(!selShape){
+    LoadMessage(tr(""),tr("No Selected Shape"));
+    return;
+  }
+  if(selShape->Shape().ShapeType()!=TopAbs_WIRE){
+    LoadMessage(tr(""),tr("The Selected Shape is not a wire"));
+    return;
+  }
+  selShape->SetShape(wiremaker.Wire());
+  context->Redisplay(selShape,false);
+  view->Redraw();
+  return;
+
+}
+void OnChooseVertexForWire(bool value){
+  if(value){
+    LoadMessage(tr(""),tr("Choose the vertex \nHint:Choose the point of intersection of the two edge"));
+    context->Deactivate();
+    context->Activate(1); //for vertex;
+    CurrentSelMode=1;
+  }
+  else{
+    context->Deactivate();
+    context->Activate(3);
+    CurrentSelMode=3;
+  }
+  return;
+}
+void OnConvertToFaceShape(){
+  return;
+}
 };
 
 

@@ -31,6 +31,7 @@ public Q_SLOTS:
 
 Q_SIGNALS:
     void sceneLoaded();
+   void OnSendString(const QString& str); 
 
 private:
     DataFlowGraphModel &_graphModel;
