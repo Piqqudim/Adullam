@@ -2,6 +2,7 @@
 #include<ShapeNodeData.hpp>
 #include<NodeDelegateModel>
 #include<InfoUtility.hpp>
+#include<QtCore/QJsonObject>
 #include<memory>
 using namespace std;
 using namespace QtNodes;
@@ -17,11 +18,22 @@ public:
 IndexNode(){
     return;
 }
+
 TopoDS_Shape GetShape() const{
     return outputShape;
 }
 void SetIndex(const int& ind){
     Index=ind;
+    return;
+}
+QJsonObject save() const override{
+    QJsonObject object=NodedelegateModel::save();
+    object["Indexer_ID"]=index();
+    return object;
+}
+void load(const QJsonObject& object) override{
+    int id=object["Indexer_ID"].toInt();
+    SetIndex(id);
     return;
 }
 int index() const{

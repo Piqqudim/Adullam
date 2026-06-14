@@ -155,7 +155,6 @@ void OnDisplay(){
     auto dir=Direction();
     auto axis=Axis();
     dir.Rotate(axis,ang);
-    TopoDS_Edge edge;
     BRepBuilderAPI_MakeEdge edgeMaker;
     Handle(Geom_Line) line=new Geom_Line(pointOfRotation,dir);
     edgeMaker.Init(line,0,Length());

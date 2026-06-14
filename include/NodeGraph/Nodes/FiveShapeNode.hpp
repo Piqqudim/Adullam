@@ -3,6 +3,7 @@
 #include<NodeDelegateModel>
 #include<ShapeNodeData.hpp>
 #include<memory>
+#include<iostream>
 using namespace QtNodes;
 using namespace std;
 class FiveShapeNode:public NodeDelegateModel{
@@ -76,6 +77,9 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         shape_1=dynamic_pointer_cast<ShapeNodeData>(data);
         if(shape_1.lock()){
             outputArray[0]=*shape_1.lock().get();
+            std::cout<<"First Value of Array Data is Set"<<"\n";
+            std::cout<<"First Value's Index"<<outputArray[0].index()<<"\n";
+
             break;
         }
      }
@@ -83,6 +87,9 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         shape_1=dynamic_pointer_cast<ShapeNodeData>(data);
         if(shape_1.lock()){
             outputArray[1]=*shape_1.lock().get();
+             std::cout<<"Second Value of Array Data is Set"<<"\n";
+            std::cout<<"Second Value's Index"<<outputArray[1].index()<<"\n";
+
             break;
         }
      }
@@ -90,6 +97,8 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         shape_1=dynamic_pointer_cast<ShapeNodeData>(data);
         if(shape_1.lock()){
             outputArray[2]=*shape_1.lock().get();
+             std::cout<<"Third Value of Array Data is Set"<<"\n";
+            std::cout<<"Third Value's Index"<<outputArray[2].index()<<"\n";
             break;
         }
      }
@@ -97,6 +106,8 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         shape_1=dynamic_pointer_cast<ShapeNodeData>(data);
         if(shape_1.lock()){
             outputArray[3]=*shape_1.lock().get();
+             std::cout<<"Fourth Value of Array Data is Set"<<"\n";
+            std::cout<<"Fourth Value's Index"<<outputArray[3].index()<<"\n";
             break;
         }
      } 
@@ -104,6 +115,8 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         shape_1=dynamic_pointer_cast<ShapeNodeData>(data);
         if(shape_1.lock()){
             outputArray[4]=*shape_1.lock().get();
+             std::cout<<"Fifth Value of Array Data is Set"<<"\n";
+            std::cout<<"Fifth Value's Index"<<outputArray[4].index()<<"\n";
             break;
         }
      }

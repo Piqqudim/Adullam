@@ -4,6 +4,7 @@
 #include<ShapeNodeData.hpp>
 #include<VectorDataNodeData.hpp>
 #include<InfoUtility.hpp>
+#include<iostream>
 #include<memory>
 using namespace INFO;
 using namespace std;
@@ -44,10 +45,10 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
         case PortType::In:{
             switch(portIndex){
                 case 0:{
-                    return VectorDataNode<ShapeNodeData>(tr("Input Shapes"),tr("VectorOfShape")).type();
+                    return VectorDataNode<ShapeNodeData>(tr("Vector Of Shapes"),tr("VectorOfShape")).type();
                 }
               case 1:{
-                     return DataArrayNode<5,ShapeNodeData>(tr("Input Shapes"),tr("ArrayOfShape")).type();
+                     return DataArrayNode<5,ShapeNodeData>(tr("Array Of Shapes"),tr("ArrayOfShape")).type();
               }
              
 
@@ -93,15 +94,16 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
    }
    if(output_data){
      std::vector<ShapeNodeData> shapeVector;
-     if(shapedata.empty()){
-        LoadMessage(tr(""),tr("Array Of Shapes is Empty"));
-        return;
-     }
+     
+     if(!shapedata.empty()){
      for(int i=0;i<shapedata.size();i++){
+        cout<<i<<"'s Shape Index:"<<shapedata.at(i).index()<<"\n";
         shapeVector.emplace_back(shapedata.at(i).aspect(),shapedata.at(i).Data(),shapedata.at(i).index());
 
      }
+     }
      for(int i=0;i<shapearray.size();i++){
+        cout<<i<<"'s Shape Index:"<<shapearray.at(i).index()<<"\n";
         shapeVector.emplace_back(shapearray[i].aspect(),shapearray[i].Data(),shapearray[i].index());
 
      }
@@ -110,15 +112,15 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
  else{
     output_data=std::make_shared<VectorDataNode<ShapeNodeData>>(tr(""),tr(""));
      std::vector<ShapeNodeData> shapeVector;
-     if(shapedata.empty()){
-        LoadMessage(tr(""),tr("Array Of Shapes is Empty"));
-        return;
-     }
+     if(!shapedata.empty()){
      for(int i=0;i<shapedata.size();i++){
+         cout<<i<<"'s Shape Index:"<<shapedata.at(i).index()<<"\n";
         shapeVector.emplace_back(shapedata.at(i).aspect(),shapedata.at(i).Data(),shapedata.at(i).index());
 
      }
+     }
      for(int i=0;i<shapearray.size();i++){
+         cout<<i<<"'s Shape Index:"<<shapearray.at(i).index()<<"\n";
         shapeVector.emplace_back(shapearray[i].aspect(),shapearray[i].Data(),shapearray[i].index());
 
      }

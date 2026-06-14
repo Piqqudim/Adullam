@@ -44,12 +44,6 @@ class SinglyShapeNode:public NodeDelegateModel,public NodeInitializer{
     OutputValue=ToShape(value);
   
     Index=object["Shape Index"].toInt();
-    if(OutputValue.IsSame(TopoDS_Shape())){
-        LoadMessage(tr("Shape Error"),tr("It is Empty"));
-    }
-    else{
-        LoadMessage(tr("Shape Result"),tr("Shape Built Successfully"));
-    }
    SetShapeData(OutputValue);
  }
  void SetInitShape(const TopoDS_Shape& sh){

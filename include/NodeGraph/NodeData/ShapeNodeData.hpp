@@ -35,8 +35,11 @@ class ShapeNodeData:public NodeData{
   *this=std::move(data);
   return;
  }
- ShapeNodeData(const ShapeNodeData& data){
-   *this=data;
+ ShapeNodeData(const ShapeNodeData& shapedata){
+  this->m_Data=shapedata.Data();
+   this->mat_aspect=shapedata.aspect();
+   this->hasMaterial=shapedata.HasMaterial();
+   this->Index=shapedata.index(); 
    return;
  }
  TopoDS_Shape Data() const{
@@ -80,15 +83,18 @@ class ShapeNodeData:public NodeData{
     return {"Shape",m_Name};
  }
  ShapeNodeData& operator=(const ShapeNodeData&& data){
-   m_Data=std::move(data.Data());
+   m_Data=std::move(data.Data()); 
+   mat_aspect=std::move(data.aspect());
+   hasMaterial=std::move(data.HasMaterial());
+   Index=std::move(data.index());
    
    return *this;
  }
  ShapeNodeData& operator=(const ShapeNodeData& shapedata){
-   m_Data=shapedata.Data();
-   SetAspect(shapedata.aspect());
-   SetHasMaterial(shapedata.HasMaterial());
-   SetIndex(shapedata.index());
+   this->m_Data=shapedata.Data();
+   this->mat_aspect=shapedata.aspect();
+   this->hasMaterial=shapedata.HasMaterial();
+   this->Index=shapedata.index();
    return *this;
  }
 };

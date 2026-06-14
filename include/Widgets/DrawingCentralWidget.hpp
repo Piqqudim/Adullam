@@ -101,6 +101,7 @@
 #include<FaceLineDialog.hpp>
 #include<ChFi2d_FilletAPI.hxx>
 #include<WireMenu.hpp>
+#include<DrawCircleDialog.hpp>
 //This file will enter 10,000 LOC
 //We have to create a dialog for viewport setting,Drawing widget is also a viewport
 //On Object Creation,deletion,editing,Transform
@@ -130,7 +131,8 @@ DC_BEZIER,
 DC_ARC,
 DC_TRIM,
 DC_POLYGON,
-DC_FILLET
+DC_FILLET,
+DC_RADIUS
 };
 enum GP_STATE{
  GPS_GATHER,
@@ -218,7 +220,7 @@ std::unique_ptr<QAction> deleteAxisObject=std::make_unique<QAction>(tr("Delete")
 std::unique_ptr<QAction> faceNormalAction=std::make_unique<QAction>(tr("Assume Face Centre Normal"));
 std::unique_ptr<QAction> convertFacePointAction=std::make_unique<QAction>(tr("Convert To Point Node"));
 std::unique_ptr<QAction> drawAction=std::make_unique<QAction>(tr("Draw Line"));
-std::unique_ptr<QAction> circleDraw=std::make_unique<QAction>(tr("Draw Circle"));
+
 std::unique_ptr<DrawCircleMenu> drawCircle=std::make_unique<DrawCircleMenu>();
 std::unique_ptr<DrawPolygonDialog> drawPolygonDialog=std::make_unique<DrawPolygonDialog>();
 std::unique_ptr<ChamferDialog> chamferDialog;
@@ -240,12 +242,20 @@ std::unique_ptr<QMenu> findByMenu=std::make_unique<QMenu>();
 std::unique_ptr<QAction> findByIndexer=std::make_unique<QAction>(tr("Find By Index Node"));
 std::unique_ptr<QAction> findByShapeNode=std::make_unique<QAction>(tr("Find By Shape Node"));
 std::unique_ptr<QAction> commitChanges=std::make_unique<QAction>(tr("Commit Change"));
+std::unique_ptr<QAction> drawCircleAction=std::make_unique<QAction>(tr("Draw Circle"));
+std::unique_ptr<QMenu> drawCircleMenu=std::make_unique<QMenu>();
+std::unique_ptr<QAction> drawCircleByRadius=std::make_unique<QAction>(tr("Draw Circle By Radius and Centre"));
+std::unique_ptr<QAction> circleDraw=std::make_unique<QAction>(tr("Draw Circle by three point"));
+std::unique_ptr<QAction> startDrawCircle=std::make_unique<QAction>(tr("Start Draw Circle")); //this one spawns the circle draw dialog
+std::unique_ptr<QAction> endDrawCircle=std::make_unique<QAction>(tr("End Draw Circle"));
+std::unique_ptr<QMenu> circleByRadiusMenu=std::make_unique<QMenu>();
 std::unique_ptr<TransientPolygon> transPolygon;
 std::unique_ptr<TransientBezierCurve> transCurve;
 std::unique_ptr<TransientBSplineCurve> bspCurve;
 std::unique_ptr<BezierMenu> bMenu;
 std::unique_ptr<BSplineMenu> spMenu;
 std::unique_ptr<AxisMenu> axisMenu;
+std::unique_ptr<CircleDialog> circleDialog=std::make_unique<CircleDialog>();
 std::unique_ptr<DrawPolygonMenu> drawPolyMenu=std::make_unique<DrawPolygonMenu>();
 std::unique_ptr<ApplyChamferMenu> chamferMenu=std::make_unique<ApplyChamferMenu>();
 std::unique_ptr<ApplyFilletMenu> filletMenu=std::make_unique<ApplyFilletMenu>();
@@ -496,7 +506,13 @@ public:
     DockMenus->addAction(convertPointAction.get());
     DockMenus->addAction(refreshAction.get());
     DockMenus->addAction(drawAction.get());
-    DockMenus->addAction(circleDraw.get());
+    drawCircleAction->setMenu(drawCircleMenu.get());
+    drawCircleMenu->addAction(circleDraw.get());
+    drawCircleMenu->addAction(drawCircleByRadius.get());
+    drawCircleByRadius->setCheckable(true);
+    circleByRadiusMenu->addAction(startDrawCircle.get());
+    circleByRadiusMenu->addAction(endDrawCircle.get());
+    DockMenus->addAction(drawCircleAction.get());
     DockMenus->addAction(polygonAction.get());
     DockMenus->addAction(GatherPointAction.get());
     DockMenus->addAction(GatherCurveAction.get());
@@ -511,6 +527,7 @@ public:
  context=new AIS_InteractiveContext(Viewer);
  drawLineDialog->SetContext(context);
  faceDialog->SetContext(context);
+ circleDialog->SetContext(context);
  transPolygon=std::make_unique <TransientPolygon>(std::ref(context));
  
  transCurve=make_unique<TransientBezierCurve>(std::ref(context));
@@ -639,6 +656,12 @@ view->MustBeResized();
  connect(wireMenu->applyFillet.get(),&QAction::triggered,this,&DrawingCentralWidget::ApplyFilletToWire);
  connect(wireMenu->chooseVertex.get(),&QAction::triggered,this,&DrawingCentralWidget::OnChooseVertexForWire);
  connect(wireMenu->chooseRadius.get(),&QAction::triggered,this,&DrawingCentralWidget::OnSelectRadiusForFillet);
+ connect(circleDialog.get(),&CircleDialog::Done,this,&DrawingCentralWidget::OnHandleDoneForCircleDialog);
+ connect(wireMenu->convertToFace.get(),&QAction::triggered,this,&DrawingCentralWidget::OnConvertToFaceShape);
+ connect(drawCircleByRadius.get(),QAction::toggled,this,&DrawingCentralWidget::DrawCircleOnBool);
+ connect(startDrawCircle.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleCircleDialog);
+ connect(endDrawCircle.get(),&QAction::triggered,this,&DrawingCentralWidget::EndRadiusOps); 
+  return;
 
 }
   
@@ -1222,6 +1245,9 @@ void DisplayObject(const Handle(CustomAIS_Shape)& object){
     Shapes.at(shape->ID())->SetID(shape->ID());
     context->Display(Shapes.at(shape->ID()),false);
     }
+    else{
+      LoadMessage(tr(""),tr("ID is negative"));
+    }
    }
   }
   view->Redraw();
@@ -1523,6 +1549,12 @@ void mousePressEvent(QMouseEvent* event) override{
         using surfaceWidgetShape
         
         */
+       if(dc==DC_RADIUS){
+          double projX,projY,projZ=0.0;
+         view->ConvertToGrid(static_cast<int>(std::lround(event->pos().x()*dpr)),static_cast<int>(std::lround(event->pos().y()*dpr)),projX,projY,projZ);
+        LineStartPoint=gp_Pnt(projX,projY,projZ);
+        return;
+       }
        if(dc==DC_POLYGON){
         double projX,projY,projZ=0.0;
          view->ConvertToGrid(static_cast<int>(std::lround(event->pos().x()*dpr)),static_cast<int>(std::lround(event->pos().y()*dpr)),projX,projY,projZ);
@@ -1946,6 +1978,10 @@ void mousePressEvent(QMouseEvent* event) override{
    
 
 else if(event->button()==Qt::RightButton){
+  if(dc==DC_RADIUS){
+    circleByRadiusMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
   if(st1==WIRE_SELECT){
     wireMenu->exec(event->globalPosition().toPoint());
     return;
@@ -3577,7 +3613,75 @@ void OnChooseVertexForWire(bool value){
   return;
 }
 void OnConvertToFaceShape(){
+  if(selWire.IsNull()){
+    LoadMessage(tr(""),tr("No Selected Wire"));
+    return;
+  }
+  BRepBuilderAPI_MakeFace facemaker(selWire);
+  if(!facemaker.IsDone()){
+   LoadMessage(tr(""),tr("Failed To Create Face From Wire"));
+   return;
+  }
+  if(selShape){
+     selShape->SetShape(facemaker.Face());
+     context->Redisplay(selShape,true);
+  }
+  else{
+    LoadMessage(tr(""),tr("No Shape Is Selected"));
+  }
+
   return;
+}
+void DrawCircleOnBool(bool value){
+  if(value){
+    LoadMessage(tr(""),tr("Select a point at which you want to draw the circle\n to start drawing circle,click start drawing menu item \n To end circle operation,click end circle operation \n CLICK_TYPE FOR POINT SELECTION: left mouse button"));
+    dc=DC_RADIUS;
+  }
+  else{
+    dc=DC_NULL;
+
+  }
+  return;
+}
+void EndRadiusOps(){
+  drawCircleByRadius->setChecked(false);
+  dc=DC_NULL;
+  return;
+}
+void OnHandleCircleDialog(){
+  circleDialog->SetPoint(LineStartPoint);
+  circleDialog->exec();
+  return;
+}
+void OnHandleDoneForCircleDialog(){
+  if(!circleDialog){
+    LoadMessage(tr(""),tr("Failed to initialize an object of circle dialog"));
+    return;
+  }
+ 
+    if(circleDialog->Angle()>=0.0000 && circleDialog->Angle()<=0.99999){
+        return;
+    }
+    if(circleDialog->Radius()<=0.0){
+        return;
+    }
+    float pie=3.14159265;
+   
+    float rad=circleDialog->Angle()*(pie/180.0f);
+    auto drawAxis=circleDialog->AxisOfDraw();
+    drawAxis.Rotate(circleDialog->rotateAxis(),rad);
+    
+     BRepBuilderAPI_MakeEdge edgeMaker;
+     Handle(Geom_Circle) circle=new Geom_Circle(drawAxis,circleDialog->Radius());
+     edgeMaker.Init(circle);
+     if(!edgeMaker.IsDone()){
+        return;
+     }
+     Handle(CustomAIS_Shape) circleShape=new CustomAIS_Shape(edgeMaker.Edge());
+      context->Display(circleShape,true);
+     
+  return;
+
 }
 };
 
