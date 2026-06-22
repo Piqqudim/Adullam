@@ -140,6 +140,19 @@ void SetContext(Handle(AIS_InteractiveContext) con){
 Quantity_Color OutputColor() const{
     return output;
 }
+void CheckDisplayStatus(Handle(AIS_InteractiveObject) object,const PrsMgr_DisplayStatus& status){
+  switch(status){
+    case PrsMgr_DisplayStatus_Displayed:{
+      context->Redisplay(object,false);
+      break;
+    }
+   case PrsMgr_DisplayStatus_Erased:{
+     context->Display(object,false);
+   }
+ 
+  }
+ return;  
+}
 void OnDisplay(){
     if(!context){
         return;
@@ -167,12 +180,11 @@ void OnDisplay(){
       context->Display(lineShape,true);
       return;
     }
-    if(context->IsDisplayed(lineShape)){
-        lineShape->SetShape(edgeMaker.Edge());
-        lineShape->SetColor(output);
-        context->Redisplay(lineShape,true);
-    }
-     return; 
+   lineShape->SetColor(output);
+   lineShape->SetShape(edgeMaker.Edge());
+   CheckDisplayStatus(lineShape,context->DisplayStatus(lineShape));
+   context->UpdateCurrentViewer(); 
+    return; 
 }
 gp_Dir Direction() const{
     return direction;
@@ -226,7 +238,8 @@ void isToggled(bool value){
 }
 void OnHandleCancel(){
      if(lineShape){
-    context->Remove(lineShape,true);
+    context->Erase(lineShape,true);
+    
     }
     reject();
     return;
@@ -236,7 +249,7 @@ void OnHandleOk(){
    DetermineValue();
     emit OnEmitDone();
     if(lineShape){
-    context->Remove(lineShape,true);
+    context->Erase(lineShape,true);
     }
     accept();
     return;

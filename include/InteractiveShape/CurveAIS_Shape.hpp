@@ -1,7 +1,7 @@
 #pragma once 
 #include<AIS_Shape.hxx>
 #include<TopoDS_Shape.hxx>
-#include<Geom_Curve.hpp>
+#include<Geom_Curve.hxx>
 #include<InfoUtility.hpp>
 using namespace INFO;
 enum DRAFT_TYPE{
@@ -15,15 +15,16 @@ DT_NULL
 };
 class CurveAIS_Shape:public AIS_Shape{
 private:
- DEFINE_STANDARD_RTTIEXT(CurveAIS_Shape, AIS_Shape)
+ 
 DRAFT_TYPE dtype=DT_NULL;
 Handle(Geom_Curve) theCurve;
+bool isLoopPart=false; //this is when an entity is part of a loop
 
 public:
 
 CurveAIS_Shape(const TopoDS_Shape& shape):AIS_Shape(shape){
   if(shape.ShapeType()!=6){
-    LoadMessage(tr(""),tr("Shape's Type is not an edge"));
+    LoadMessage(QString(""),QString("Shape's Type is not an edge"));
     SetShape(TopoDS_Edge());
     return;
   }
@@ -46,14 +47,14 @@ virtual Standard_Boolean AcceptDisplayMode(const Standard_Integer theMode) const
       //it throws an exception of type Standard_Failure
       catch (Standard_Failure const& anException)
       {
-        LoadMessage(tr(""),tr("The WireFrame builder failed To build the presentation"));
+        LoadMessage(QString(""),QString("The WireFrame builder failed To build the presentation"));
         return;
       }
       
       return;
     }
 
-virtual void SetCurve(const Handle(Geom_Curve)& curve) override{
+void SetCurve(const Handle(Geom_Curve)& curve){
   theCurve=curve;
   return;
 }
@@ -67,4 +68,5 @@ void SetDraftType(const DRAFT_TYPE& dt){
 DRAFT_TYPE GetDraftType() const{
   return dtype;
 }
+virtual ~CurveAIS_Shape(){}
 };

@@ -126,12 +126,25 @@ void OnDisplay(){
       context->Display(lineShape,true);
       return;
     }
-    if(context->IsDisplayed(lineShape)){
-        lineShape->SetShape(edgeMaker.Edge());
-        lineShape->SetColor(output);
-        context->Redisplay(lineShape,true);
-    } 
+      lineShape->SetColor(output);
+      lineShape->SetShape(edgeMaker.Edge());
+      CheckDisplayStatus(lineShape,context->DisplayStatus(lineShape));
+      context->UpdateCurrentViewer();
+   
     return;
+}
+void CheckDisplayStatus(Handle(AIS_InteractiveObject) object,const PrsMgr_DisplayStatus& status){
+  switch(status){
+    case PrsMgr_DisplayStatus_Displayed:{
+      context->Redisplay(object,false);
+      break;
+    }
+   case PrsMgr_DisplayStatus_Erased:{
+     context->Display(object,false);
+   }
+ 
+  }
+ return;  
 }
 void DetermineValue(){
     if(faceSection->faceNormalButton->isChecked()){
@@ -179,8 +192,8 @@ void OnGetColor(){
     return;
 }
 void OnHandleCancel(){
-    if(context->IsDisplayed(lineShape)){
-        context->Remove(lineShape,true);
+    if(lineShape){
+        context->Erase(lineShape,true);
     }
     reject();
     return;
@@ -189,8 +202,8 @@ void OnHandleOk(){
     DetermineValue();
     accept();
     emit Done();
-     if(context->IsDisplayed(lineShape)){
-        context->Remove(lineShape,true);
+     if(lineShape){
+        context->Erase(lineShape,true);
     }
     return;
 }

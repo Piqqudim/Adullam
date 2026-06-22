@@ -1024,13 +1024,16 @@ void SetShapeTypeName(){
   if(!centralwidget_1.get()){
        return;
   }
-  if(centralwidget_1->ChosenShape.IsNull()){
-       return;
-  }
+  if(!centralwidget_1->ChosenShape.IsNull()){
+    
   if(!sceneSettingWidget.get()){
     return;
   }
   sceneSettingWidget->STLabel()->setText(STM::shapetypemap.at(centralwidget_1->ChosenShape->Shape().ShapeType()));
+}
+if(centralwidget_1->curveShape){
+  sceneSettingWidget->STLabel()->setText(STM::shapetypemap.at(centralwidget_1->curveShape->Shape().ShapeType()));
+}
 }
 
 void OnSetPreviousColor(){
@@ -1162,6 +1165,11 @@ if(!nodewidget){
    
     
 }
+else{
+  if(centralwidget_1->curveShape){
+    emit OnSendShape(centralwidget_1->curveShape->Shape());
+  }
+}
   
  }
   if(Checked==false){
@@ -1185,9 +1193,8 @@ void OnHandleSentShape(const TopoDS_Shape& shape){
   if(!centralwidget_1){
     return;
   }
-  if(centralwidget_1->ChosenShape.IsNull()){
-    return;
-  }
+  if(!centralwidget_1->ChosenShape.IsNull()){
+    
  
 
   BRepBuilderAPI_Copy copiedShape(shape);
@@ -1201,7 +1208,19 @@ void OnHandleSentShape(const TopoDS_Shape& shape){
    LoadMessage(tr(""),QString("Current Id: ")+QString::number(nodewidget->ShapeId));
   nodewidget->shapedraw=SP_SHAPE;  
   }
+}
+else{
+  if(centralwidget_1->curveShape){
+    BRepBuilderAPI_Copy copiedShape(shape);
   
+  if(copiedShape.IsDone()){
+   nodewidget->NodeInputShape=copiedShape.Shape();
+    nodewidget->ShapeId=-1;
+   LoadMessage(tr(""),QString("Current Id: ")+QString::number(nodewidget->ShapeId));
+    nodewidget->shapedraw=SP_SHAPE;  
+   }
+  }
+}
   return;
 }
 void OnHandleFaceEmitted(const TopoDS_Face& face){
@@ -1890,6 +1909,7 @@ void OnHandleMaterialNodeForMatNodeWidget(bool value){
   return;
 }
 void OnHandleEmitMaterial(){
+   
     nodewidget->nodeShapeMaterial=centralwidget_1->chosenShapeMaterial;
     nodewidget->shapedraw=SP_MATNODE;
   return;

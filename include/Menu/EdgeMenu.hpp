@@ -6,25 +6,37 @@ class EdgeMenu:public QMenu{
  public:
  std::unique_ptr<QAction> showInfoAction;
 std::unique_ptr<QAction> convertAction;
-std::unique_ptr<QAction> convertToFaceAction;
+std::unique_ptr<QAction> convertToFaceAction ;
 std::unique_ptr<QAction> convertToWireAction;
-std::unique_ptr<QAction> trimAction=std::make_unique<QAction>(tr("Should Trim"));
+std::unique_ptr<QAction> trimAction=std::make_unique<QAction>(tr("Trim "));
 std::unique_ptr<QAction> filletAction=std::make_unique<QAction>(tr("Apply Fillet"));
-
+std::unique_ptr<QAction> editMenuAction=std::make_unique<QAction>(tr("Edit"));
+std::unique_ptr<QMenu> editMenu=std::make_unique<QMenu>();
+std::unique_ptr<QAction> editLine=std::make_unique<QAction>(tr("Edit Curve"));
+std::unique_ptr<QAction> updateLineEdit=std::make_unique<QAction>(tr("Update Curve Edit Presentation"));
+std::unique_ptr<QAction> removeLineEdit=std::make_unique<QAction>(tr("Remove Curve Edit"));
+std::unique_ptr<QAction> nullify=std::make_unique<QAction>(tr("Nullify Curve Representation"));
 EdgeMenu():QMenu(){
     showInfoAction=std::make_unique<QAction>(tr("Show Info"),nullptr);
     convertAction=std::make_unique<QAction>(tr("Convert To Edge Node"),nullptr);
     convertToFaceAction=make_unique<QAction>(tr("Convert To Face Node"),nullptr);
     convertToWireAction=make_unique<QAction>(tr("Convert To Wire Node"),nullptr);
+    editMenuAction->setMenu(editMenu.get());
+    editMenu->addAction(editLine.get());
+    editMenu->addAction(updateLineEdit.get());
+    editMenu->addAction(removeLineEdit.get());
+    editMenu->addAction(nullify.get());
     filletAction->setCheckable(true);
     convertToWireAction->setCheckable(true);
     convertAction->setCheckable(true);
     convertToFaceAction->setCheckable(true);
     trimAction->setCheckable(true);
+
     
     addAction(showInfoAction.get());
     addAction(convertAction.get());
     addAction(trimAction.get());
+    addAction(editMenuAction.get());
     addAction(convertToFaceAction.get());
     addAction(convertToWireAction.get());
     addAction(filletAction.get());
@@ -157,7 +169,11 @@ class TrimMenu:public QMenu{
 private:
 std::unique_ptr<QAction> firstpoint;
 std::unique_ptr<QAction> secondpoint;
+std::unique_ptr<QAction> trimAction;
+std::unique_ptr<QMenu> trimOptionMenu;
+
 std::unique_ptr<QAction> Trim;
+std::unique_ptr<QAction> trimByPointAction;
 std::unique_ptr<QAction> endTrimOps;
 
 public:
@@ -166,11 +182,18 @@ TrimMenu(){
  firstpoint->setCheckable(true);
  secondpoint=make_unique<QAction>(tr("Choose Second Point"));
  secondpoint->setCheckable(true);
- Trim=std::make_unique<QAction>(tr("Trim"));
+ trimAction=std::make_unique<QAction>(tr("Build Trim Operation"));
+ trimOptionMenu=std::make_unique<QMenu>();
+ trimAction->setMenu(trimOptionMenu.get());
+ trimByPointAction=std::make_unique<QAction>(tr("Trim By Point"));
+ Trim=std::make_unique<QAction>(tr("Trim By Parametric Values"));
+ trimOptionMenu->addAction(Trim.get());
+ trimOptionMenu->addAction(trimByPointAction.get());
  endTrimOps=std::make_unique<QAction>(tr("End Trim Operations"));
  addAction(firstpoint.get());
  addAction(secondpoint.get());
- addAction(Trim.get());
+
+ addAction(trimAction.get());
  addAction(endTrimOps.get());
 }
 QAction* First() const{
@@ -184,6 +207,9 @@ QAction* Second() const{
 }
 QAction* TrimAction() const{
   return Trim.get();
+}
+QAction* PointAction() const{
+  return trimByPointAction.get();
 }
 void SetValues(bool first,bool second){
   firstpoint->setChecked(first);

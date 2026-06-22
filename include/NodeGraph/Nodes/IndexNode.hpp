@@ -27,7 +27,7 @@ void SetIndex(const int& ind){
     return;
 }
 QJsonObject save() const override{
-    QJsonObject object=NodedelegateModel::save();
+    QJsonObject object=NodeDelegateModel::save();
     object["Indexer_ID"]=index();
     return object;
 }

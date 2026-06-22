@@ -39,7 +39,7 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
      menubar->addAction(EditorAction.get());
      Splitter->addWidget(tabwidget.get());
      fileSystemWidget=std::make_unique<TreeViewWidget>(nullptr);
-
+     
      tabwidget_1.reset(new TabWidget(Splitter.get()));
      tabwidget_1->setTabsClosable(false);
      tabwidget_1->setTabPosition(QTabWidget::North);
@@ -138,7 +138,7 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
     connect(centralwidget_1->ConstructPointNodeAction.get(),&QAction::toggled,this,&Window_Frame::OnHandleConstructPointNode);
     connect(centralwidget_1.get(),&DrawingCentralWidget::OnSendConvertValue,this,&Window_Frame::OnSetValuesForTriple);
     connect(centralwidget_1->ConstructTransformNodeAction.get(),&QAction::toggled,this,&Window_Frame::OnSetNodeTransformBool);
-    connect(ModelActionMenu->CubeAction.get(),&QAction::toggled,this,&Window_Frame::OnDrawCubeInWorld);
+    connect(ModelActionMenu->CubeAction.get(),&QAction::toggled,this,&Window_Frame::OnDrawCubeInWorld);  
     connect(ModelActionMenu->SphereAction.get(),&QAction::toggled,this,&Window_Frame::OnDrawSphere);
     connect(ModelActionMenu->CylinderAction.get(),&QAction::toggled,this,&Window_Frame::OnDrawCylinder);              
     connect(ModelActionMenu->CuboidAction.get(),&QAction::toggled,this,&Window_Frame::OnDrawCuboid);

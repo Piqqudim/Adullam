@@ -20,6 +20,7 @@ WireMenu(){
     applyFillet=std::make_unique<QAction>(tr("Apply Fillet"));
     applyFilletToAll=std::make_unique<QAction>(tr("Apply Fillet To all"));
     convertToFace=std::make_unique<QAction>(tr("Convert To Face"));
+    applyFillet->setCheckable(true);
     applyFilletToAll->setCheckable(true);
     chooseVertex=std::make_unique<QAction>(tr("Choose Vertex"));
     chooseVertex->setCheckable(true);
@@ -31,5 +32,28 @@ WireMenu(){
     addAction(applyFilletToAll.get());
     addAction(chooseVertex.get());
     addAction(chooseRadius.get());
+}
+};
+
+class WireFilletMenu:public QMenu{
+public:
+std::unique_ptr<QAction> selectFirstEdge=std::make_unique<QAction>(tr("Select First Edge"));
+std::unique_ptr<QAction> selectSecondEdge=std::make_unique<QAction>(tr("Select Second Edge"));
+std::unique_ptr<QAction> endOps=std::make_unique<QAction>(tr("End Operation"));
+std::unique_ptr<QAction> build=std::make_unique<QAction>(tr("Build"));
+std::unique_ptr<QAction> selectRadius=std::make_unique<QAction>(tr("Select Radius"));
+std::unique_ptr<QAction> selectPoint=std::make_unique<QAction>(tr("Select Vertex"));
+WireFilletMenu(){
+    selectFirstEdge->setCheckable(true);
+    selectSecondEdge->setCheckable(true);
+    selectPoint->setCheckable(true);
+    addAction(selectFirstEdge.get());
+    
+    addAction(selectSecondEdge.get());
+    addAction(selectPoint.get());
+    addAction(selectRadius.get());
+    addAction(endOps.get());
+    addAction(build.get());
+    return;
 }
 };

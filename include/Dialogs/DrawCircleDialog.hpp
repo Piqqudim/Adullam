@@ -168,13 +168,11 @@ void OnDisplay(){
      if(circleShape.IsNull()){
         circleShape=new CustomAIS_Shape(edgeMaker.Edge());
         context->Display(circleShape,true);
+        return;
      }
-     
-        if(context->IsDisplayed(circleShape)){
-        circleShape->SetShape(edgeMaker.Edge());
-        context->Redisplay(circleShape,true);
-        }
-     
+     circleShape->SetShape(edgeMaker.Edge());
+    CheckDisplayStatus(circleShape,context->DisplayStatus(circleShape));
+    context->UpdateCurrentViewer();
     return;
 }
 void DetermineValue(){
@@ -233,7 +231,19 @@ void DetermineValue(){
 
 }
 
-
+void CheckDisplayStatus(Handle(AIS_InteractiveObject) object,const PrsMgr_DisplayStatus& status){
+  switch(status){
+    case PrsMgr_DisplayStatus_Displayed:{
+      context->Redisplay(object,false);
+      break;
+    }
+   case PrsMgr_DisplayStatus_Erased:{
+     context->Display(object,false);
+   }
+ 
+  }
+ return;  
+}
 
 
 signals:
@@ -243,7 +253,7 @@ void Done();
 public slots:
 void HandleCancel(){
     if(circleShape){
-        context->Remove(circleShape,true);
+        context->Erase(circleShape,true);
     }
     reject();
     return;
@@ -251,7 +261,7 @@ void HandleCancel(){
 void HandleOk(){
     DetermineValue();
      if(circleShape){
-        context->Remove(circleShape,true);
+        context->Erase(circleShape,true);
     }
     accept();
     emit Done();
