@@ -1,4 +1,4 @@
-/*#pragma once
+#pragma once
 #include<BRepOffsetAPI_MakeOffset.hxx>
 #include<FaceNodeData.hpp>
 #include<NodeDelegateModel>
@@ -332,7 +332,7 @@ QWidget* embeddedWidget() override{
 
 
 
-*/
+
 
 
 
