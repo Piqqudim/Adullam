@@ -1,5 +1,5 @@
 #pragma once 
-
+#include<NodeInitializer.hpp>
 #include<NodeDelegateModel>
 #include<AxisNodeData.hpp>
 #include<ShapeUtil.hpp>
@@ -13,7 +13,7 @@ const float C_PI=3.141592654;
 using namespace Shape_Utility;
 
 using namespace INFO;
-class RevolveNode:public NodeDelegateModel{
+class RevolveNode:public NodeDelegateModel,public NodeInitializer{
  private:
  std::weak_ptr<ShapeNodeData> shape_input;
  std::weak_ptr<AxisNodeData> axis_input;
@@ -23,6 +23,9 @@ class RevolveNode:public NodeDelegateModel{
  gp_Ax2 axis;
  TopoDS_Shape inputShape;
  double value=80.0f;
+ bool isPortA=false;
+ bool isPortB=false;
+ bool isPortC=false;
  public:
  RevolveNode(){
     axis.SetDirection(gp_Dir(1.0,0.0,0.0)); //by default,along the x-axis
@@ -44,6 +47,12 @@ QString caption() const override{
 }
 QString name() const override{
     return caption();
+}
+void SetToFalse() override{
+  isPortA=false;
+  isPortB=false;
+   isPortC=false;
+    return;
 }
 NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
     switch(portType){
@@ -77,6 +86,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
             shape_input=dynamic_pointer_cast<ShapeNodeData>(data);
             if(shape_input.lock()){
                 inputShape=shape_input.lock()->Data();
+                isPortA=true;
             }
             break;
         }
@@ -84,6 +94,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
             axis_input=dynamic_pointer_cast<AxisNodeData>(data);
             if(axis_input.lock()){
                 axis=axis_input.lock()->Data();
+                isPortB=true;
             }
             break;
         }
@@ -97,13 +108,22 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
                  if(value<=-360.0f){
                    value=-359.0f;
                   }
+                  isPortC=true;
             }
             break;
         }
         
     }
     if(outputShape){
-        
+        if(isPortA==false){
+            return;
+        }
+        if(isPortB==false){
+            return;
+        }
+        if(isPortC==false){
+            return;
+        }
         value=(C_PI*value)/180.0f; //convert to radian
         TopoDS_Shape sh=Revolve(inputShape,axis,value,Error);
         if(sh.IsSame(TopoDS_Shape())){
@@ -114,6 +134,15 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         outputShape->SetData(sh);
     }
     else{
+         if(isPortA==false){
+            return;
+        }
+        if(isPortB==false){
+            return;
+        }
+        if(isPortC==false){
+            return;
+        }
        outputShape=make_shared<ShapeNodeData>(tr(""));
        value=(C_PI*value)/180.0f; //convert to radian
         TopoDS_Shape sh=Revolve(inputShape,axis,value,Error);

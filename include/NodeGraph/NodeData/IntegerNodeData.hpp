@@ -21,6 +21,10 @@ TemplatedData(const TemplatedData& data){
 T Data() const{
     return m_Data;
 }
+void SetData(const T& data){
+    m_Data=data;
+    return;
+}
 TemplatedData& operator=(const TemplatedData& data){
     m_Data=data.Data();
     return *this;

@@ -19,7 +19,7 @@ enum EDIT_TYPE{
  ET_CIRCLE,
  ET_LINE,
  ET_BEZIER,
- ET_SPLINES,
+ ET_BSPLINE,
  ET_ARC,
  ET_HYPERBOLA,
  ET_ELLIPSE,
@@ -41,7 +41,7 @@ class EditCircleShape:public AIS_Shape{
  gp_Dir faceDir;
  gp_Pnt position; //position in space
  Quantity_Color faceColor;
- 
+ size_t index=0; //very useful for indexing in Bezier and BSplines
  EDIT_TYPE etype=ET_NULL;
  PARTEDIT pedit=PE_NULL;
  public:
@@ -49,6 +49,15 @@ class EditCircleShape:public AIS_Shape{
  EditCircleShape(const TopoDS_Shape& Shape=TopoDS_Shape()):AIS_Shape(Shape){
     return;
  }
+ EditCircleShape(const EDIT_TYPE& et,const gp_Pnt& pnt,const gp_Dir& d,Handle(AIS_InteractiveObject) obj,const size_t& ind):AIS_Shape(TopoDS_Shape()){
+   etype=et;
+   faceDir=d;
+   attachedObject=obj;
+   index=ind;
+   position=pnt;
+   UpdateShape(faceDir,position);
+   return;
+}
  void SetEditType(const EDIT_TYPE& et){
    etype=et;
    return;
@@ -56,6 +65,13 @@ class EditCircleShape:public AIS_Shape{
  void SetPartType(const PARTEDIT& pt){
    pedit=pt;
    return;
+ }
+ void SetIndex(const size_t& i){
+   index=i;
+   return;
+ }
+ size_t Index() const{
+   return index;
  }
  void SetMyContext(Handle(AIS_InteractiveContext) con){
    context=con;
@@ -72,6 +88,10 @@ class EditCircleShape:public AIS_Shape{
     SetFaceTransparency(0.6);
     SetColor(faceColor);
     return;
+ }
+ void UpdateDir(const gp_Dir& dir){
+  UpdateShape(dir,GetPosition());
+  return;
  }
  void UpdateShape(const gp_Dir& dir,const gp_Pnt& pnt){
     Handle(Geom_Circle) geomCircle=new Geom_Circle(gp_Ax2(pnt,dir),10.0);

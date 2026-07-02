@@ -78,6 +78,14 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
         
     }
 }
+void EmitEmptyShape(){
+    outputShape=TopoDS_Shape();
+    if(outputData){
+        outputData->SetData(outputShape);
+    }
+    emit dataUpdated(0);
+    return;
+}
 void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
    if(!data){
     return;
@@ -113,6 +121,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
      outputData->SetAspect(mat);
    }
    emit dataUpdated(0);
+   return;
 }
 std::shared_ptr<NodeData> outData(PortIndex port) override{
   if(outputData){

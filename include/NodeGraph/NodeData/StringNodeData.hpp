@@ -11,11 +11,19 @@ QString m_Name;
 
 
 public:
+StringNodeData(const QString& name=QString()){
+    m_Name=name;
+    return;
+}
 StringNodeData(const QString& data,const QString& name):m_Data{data},m_Name{name}{
 
 }
 QString Data() const{
     return m_Data;
+}
+void SetData(const QString& data){
+    m_Data=data;
+    return;
 }
 NodeDataType type() const override{
     return {"String",m_Name};

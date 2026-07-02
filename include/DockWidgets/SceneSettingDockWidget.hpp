@@ -125,7 +125,7 @@ class SceneSettingWidget:public QWidget{
       PlaneSection->setContentLayout(*planeFormLayout);
       //End of PlaneSection 
     //This is highlight section
-    hilisection.reset(new SelectedHighlightSection(tr("Selection Aspect"),2,this,80));
+    hilisection.reset(new SelectedHighlightSection(tr("Color Aspect"),2,this,80));
     shapetypepane=std::make_unique<ShapeTypePane>(this);
     viewsection=make_unique<ViewSettingSection>(this);
     ScLayout->addWidget(SelFilterSection);

@@ -6,7 +6,7 @@ class FloatNodeData:public QtNodes::NodeData{
 public:
 float m_Data;
 QString m_Name;
-FloatNodeData(const QString& name):m_Name{name}{
+FloatNodeData(const QString& name=QString()):m_Name{name}{
     return;
 }
 FloatNodeData(const float& data,const QString& name):m_Data{data},m_Name{name}{

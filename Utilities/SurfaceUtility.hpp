@@ -27,6 +27,9 @@
 #include<IntTools_Context.hxx>
 #include<BRepExtrema_DistShapeShape.hxx>
 #include<BRepBuilderAPI_MakeVertex.hxx>
+#include<BRepBuilderAPI_MakeEdge.hxx>
+#include<BRepBuilderAPI_MakeWire.hxx>
+#include<BRepBuilderAPI_MakeFace.hxx>
 #include<GProp_GProps.hxx>
 #include<GeomLProp_SLProps.hxx>
 #include<GeomAPI_ProjectPointOnSurf.hxx>
@@ -273,5 +276,49 @@ inline gp_Dir GetFaceNormal(const TopoDS_Face& face,const gp_Pnt& point){
    }
    LoadMessage(QString(""),QString("Normal is not computed"));
    return gp_Dir(0.0,0.0,1.0);
+}
+inline TopoDS_Face BuildRectFace(const float& width,const float& height){
+   float scaledWidth=0.5*width;
+   float scaledHeight=0.5*height;
+   gp_Pnt pnt1(-scaledWidth,scaledHeight,0.0);
+   gp_Pnt pnt2(scaledWidth,scaledHeight,0.0);
+   gp_Pnt pnt3(scaledWidth,-scaledHeight,0.0);
+   gp_Pnt pnt4(-scaledWidth,-scaledHeight,0.0);
+
+   BRepBuilderAPI_MakeEdge edgemaker(pnt1,pnt2);
+   if(!edgemaker.IsDone()){
+   LoadMessage(QString(""),QString("First Edge Failed to be created"));
+   return TopoDS_Face();
+   }
+   BRepBuilderAPI_MakeEdge edgemaker_1(pnt2,pnt3);
+   if(!edgemaker_1.IsDone()){
+     LoadMessage(QString(""),QString("Second Edge Failed to be created"));
+     return TopoDS_Face();
+   }
+   BRepBuilderAPI_MakeEdge edgemaker_2(pnt3,pnt4);
+   if(!edgemaker_2.IsDone()){
+    LoadMessage(QString(""),QString("Third Edge Failed to be created"));
+     return TopoDS_Face();
+   }
+   BRepBuilderAPI_MakeEdge edgemaker_3(pnt4,pnt1);
+   if(!edgemaker_3.IsDone()){
+    LoadMessage(QString(""),QString("Fourth Edge Failed to be created"));
+     return TopoDS_Face();
+   }
+    BRepBuilderAPI_MakeWire wiremaker;
+    wiremaker.Add(edgemaker.Edge());
+    wiremaker.Add(edgemaker_1.Edge());
+    wiremaker.Add(edgemaker_2.Edge());
+    wiremaker.Add(edgemaker_3.Edge());
+    if(!wiremaker.IsDone()){
+      return TopoDS_Face();
+    }
+    BRepBuilderAPI_MakeFace facemaker(wiremaker.Wire());
+    if(!facemaker.IsDone()){
+      return TopoDS_Face();
+    }
+
+    
+   return facemaker.Face();
 }
 }

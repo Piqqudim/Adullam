@@ -8,6 +8,10 @@ public:
 bool m_Data;
 QString m_Name;
 BooleanNodeData(){}
+BooleanNodeData(const QString& name=QString()){
+  m_Data=false;
+  m_Name=name;
+}
 BooleanNodeData(const bool& data,const QString& name):m_Data{data},m_Name{name}{
     return;
 }

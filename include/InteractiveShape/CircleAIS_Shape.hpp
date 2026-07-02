@@ -30,6 +30,7 @@ void SetCenter(const gp_Pnt& val){
     center=val;
     return;
 }
+
 void SetDir(const gp_Dir& d){
     dir=d;
     return;
@@ -59,6 +60,7 @@ void UpdateShape(){
     if(!circle){
         return;
     }
+    circleCurve=circle;
     BRepBuilderAPI_MakeEdge edgeMaker;
     edgeMaker.Init(circle);
     if(!edgeMaker.IsDone()){
@@ -99,23 +101,13 @@ void OnDisplayComponent(Handle(AIS_InteractiveObject) obj){
     else{
     ed->SetPosition(Center());
     }
-    if(!ed_1){
-        Handle(Geom_Circle) circ=new Geom_Circle(gp_Ax2(Center(),Dir()),Radius());
-        gp_Pnt pnt;
-        circ->D0((double)0.0,pnt);
-        SetRadiusPosition(pnt);
-        ed_1=new EditCircleShape(Dir(),pnt);
-        ed_1->SetAttachedObject(obj);
-        ed_1->SetEditType(ET_CIRCLE);
-        ed_1->SetPartType(PE_CIRCLESTARTPOINT);
-        context->Display(ed_1,1,4,false);
-    }
-    else{
-        ed_1->SetPosition(RadiusPos());
-    }
+    
 
     UpdatePresentation();
  return;   
+}
+Handle(EditCircleShape) GetCenterMarker() const{
+    return ed;
 }
 void UpdatePresentation(){
     CheckDisplayStatus(ed,context->DisplayStatus(ed));
@@ -127,28 +119,13 @@ void UpdateShape(const PARTEDIT& edittype,const gp_Pnt& pnt){
   switch(edittype){
     case PE_CIRCLEMIDPOINT:{ //moving the center of the circle also moves the end point
         SetCenter(pnt);
-        UpdateShape();
-        ed->UpdateShape(Dir(),Center());
-        Handle(Geom_Circle) circl=new Geom_Circle(gp_Ax2(Center(),Dir()),Radius());
-        gp_Pnt pnt_1;
-        circl->D0((double)0.0,pnt_1);
-        ed_1->SetPosition(pnt_1);
-        SetRadiusPosition(pnt_1);
+        ed->SetPosition(Center());
+        context->SetLocation(ed,TopLoc_Location(gp_Trsf()));
         CheckDisplayStatus(ed,context->DisplayStatus(ed));
-        CheckDisplayStatus(ed_1,context->DisplayStatus(ed_1));
+        UpdateShape();
         break;
     }
-  case PE_CIRCLESTARTPOINT:{
-       gp_Vec delta(Center(),pnt);
-       SetRadius(delta.Magnitude());
-       SetRadiusPosition(Center().Translated(delta));
-       UpdateShape();
-       ed_1->UpdateShape(Dir(),RadiusPos());
-       CheckDisplayStatus(ed_1,context->DisplayStatus(ed_1));
-       
-       
-     break;
-  }
+  
   }
   return;
 }
@@ -156,15 +133,39 @@ void RemovePrs(){
     if(ed){
         context->Erase(ed,false);
     }
-    if(ed_1){
-        context->Erase(ed_1,false);
-    }
+    
     context->UpdateCurrentViewer();
     return;
 }
 void UpdateWithTransform(const gp_Trsf& trans){
+    if(trans.Form()==gp_Identity){
+        return;
+    }
+    gp_Trsf trsf1;
+    gp_Trsf trsf2;
+    if(ed){
+        gp_Pnt pnt1=ed->GetPosition();
+        pnt1=pnt1.Transformed(trans);
+        trsf1.SetTranslation(gp_Pnt(0.0,0.0,0.0),pnt1);
+        context->SetLocation(ed,TopLoc_Location(trsf1));
+        context->Display(ed,false);
+    }
+    
+    context->UpdateCurrentViewer();
     return;
 }
-
+void DeleteMarkers(){
+  if(ed){
+    if(context->IsDisplayed(ed)){
+       context->Remove(ed,false);
+    }
+  }
+  return;
+}
+void AlignWithDir(const gp_Dir& dir){
+    ed->UpdateDir(dir);
+    context->Redisplay(ed,true);
+    return;
+}
 
 };

@@ -10,10 +10,10 @@
 class LineAIS_Shape:public CurveAIS_Shape{
 private:
 
- Handle(Geom_Line) lineCurve;
+Handle(Geom_Line) lineCurve;
 gp_Pnt start; //start point
 gp_Pnt end; //end point
-
+gp_Pnt midpoint;
 gp_Dir dir; //the direction of draw
  bool isConverted=false;
  Handle(EditCircleShape) ed;
@@ -62,11 +62,33 @@ void SetDir(const gp_Dir& d){
   dir=d;
   return;
 }
+void UpdateStartPoint(const gp_Pnt& pnt){
+  SetStartPoint(pnt);
+  ed->SetPosition(pnt);
+   CheckDisplayStatus(ed,context->DisplayStatus(ed));
+return;
+}
+void UpdateEndPoint(const gp_Pnt& pnt){
+  SetEndPoint(pnt);
+  ed_2->SetPosition(pnt);
+  CheckDisplayStatus(ed_2,context->DisplayStatus(ed_2));
+  return;
+}
+void SetBothPoint(const gp_Pnt& pnt,const gp_Pnt& pnt_1){
+  UpdateStartPoint(pnt);
+  UpdateEndPoint(pnt_1);
+  return;
+}
 gp_Dir GetDir() const{
   return dir;
 }
 TopoDS_Edge Edge() const{
   return TopoDS::Edge(Shape());
+}
+void ComputeMidPoint(){
+    gp_Vec midpointVec(Start(),End());
+    midpoint=Start().Translated(midpointVec*0.5);
+    return;
 }
 void UpdateShape(){
   BRepBuilderAPI_MakeEdge edgeMaker(Start(),End());
@@ -105,20 +127,38 @@ void UpdateShape(const PARTEDIT& edittype,const gp_Pnt& pnt){
   switch(edittype){
     case PE_LINESTART:{
       SetStartPoint(pnt);
-      
-      ed_1->UpdateShape(dir,UpdateMidpoint());
-     
+      ed->SetPosition(pnt);
+      ed_1->SetPosition(UpdateMidpoint());
+       context->SetLocation(ed,TopLoc_Location(gp_Trsf()));
+      context->SetLocation(ed_1,TopLoc_Location(gp_Trsf()));
       CheckDisplayStatus(ed_1,context->DisplayStatus(ed_1));
+      CheckDisplayStatus(ed,context->DisplayStatus(ed));
       UpdateShape();
       break;
     }
+    case PE_LINEMIDPOINT:{
+       ComputeMidPoint();
+       ed->SetPosition(Start());
+       ed_2->SetPosition(End());
+       ed_1->SetPosition(midpoint);
+        context->SetLocation(ed,TopLoc_Location(gp_Trsf()));
+        context->SetLocation(ed_2,TopLoc_Location(gp_Trsf()));
+        context->SetLocation(ed_1,TopLoc_Location(gp_Trsf()));
+        CheckDisplayStatus(ed,context->DisplayStatus(ed));
+        CheckDisplayStatus(ed_2,context->DisplayStatus(ed_2));
+        
+        UpdateShape();
+         break;
+    }
     case  PE_LINEEND:{
      SetEndPoint(pnt);
-      
+      ed_2->SetPosition(pnt);
       ed_1->UpdateShape(dir,UpdateMidpoint());
-     
+      context->SetLocation(ed_2,TopLoc_Location(gp_Trsf()));
+      context->SetLocation(ed_1,TopLoc_Location(gp_Trsf()));
+      CheckDisplayStatus(ed_2,context->DisplayStatus(ed_2));
       CheckDisplayStatus(ed_1,context->DisplayStatus(ed_1));
-     UpdateShape();
+      UpdateShape();
      break;
     }
     
@@ -167,21 +207,98 @@ void OnDisplayEditComp(Handle(AIS_InteractiveObject) obj){
   UpdatePresentation();
   return;
 }
+Handle(EditCircleShape) MidPointMarker() const{
+  return ed;
+}
 void RemoveEdit(){
   if(ed){
+    if(context->IsDisplayed(ed)){
     context->Erase(ed,false);
+    }
   }
   if(ed_1){
+    if(context->IsDisplayed(ed)){
     context->Erase(ed_1,false);
+    }
   }
   if(ed_2){
+    if(context->IsDisplayed(ed_2)){
     context->Erase(ed_2,false);
+  }
   }
   context->UpdateCurrentViewer();
   return;
 }
 void UpdateWithTransform(const gp_Trsf& trans){
-  
+  if(trans.Form()==gp_Identity){
+        return;
+    }
+    gp_Trsf trsf1;
+    gp_Trsf trsf2;
+    gp_Trsf trsf3;
+    if(ed){
+        gp_Pnt pnt1=ed->GetPosition();
+        pnt1=pnt1.Transformed(trans);
+        trsf1.SetTranslation(gp_Pnt(0.0,0.0,0.0),pnt1);
+        context->SetLocation(ed,TopLoc_Location(trsf1));
+        context->Display(ed,false);
+    }
+    if(ed_1){
+        gp_Pnt pnt1=ed_1->GetPosition();
+        pnt1=pnt1.Transformed(trans);
+        trsf2.SetTranslation(gp_Pnt(0.0,0.0,0.0),pnt1);
+        context->SetLocation(ed_1,TopLoc_Location(trsf2));
+        context->Display(ed_1,false);
+    }
+    if(ed_2){
+      gp_Pnt pnt1=ed_2->GetPosition();
+        pnt1=pnt1.Transformed(trans);
+        trsf3.SetTranslation(gp_Pnt(0.0,0.0,0.0),pnt1);
+        context->SetLocation(ed_2,TopLoc_Location(trsf3));
+        context->Display(ed_2,false);
+    }
+    context->UpdateCurrentViewer();
+  return;
+}
+void DeleteMarkers(){
+  if(ed){
+    if(context->IsDisplayed(ed)){
+       context->Remove(ed,false);
+    }
+  }
+  if(ed_1){
+    if(context->IsDisplayed(ed_1)){
+      context->Remove(ed_1,false);
+    }
+  }
+  if(ed_2){
+    if(context->IsDisplayed(ed_2)){
+      context->Remove(ed_2,false);
+    }
+  }
+  return;
+}
+void UpdateWithGizmoPos(const gp_Pnt& pnt){
+  gp_Vec delta1(ed->GetPosition(),pnt);
+  ed->SetPosition(ed->GetPosition().Translated(delta1));
+  gp_Vec delta2(ed_1->GetPosition(),pnt);
+  ed_1->SetPosition(ed_1->GetPosition().Translated(delta2));
+  gp_Vec delta3(ed_2->GetPosition(),pnt);
+  ed_2->SetPosition(ed_2->GetPosition().Translated(delta3));
+  CheckDisplayStatus(ed,context->DisplayStatus(ed));
+   CheckDisplayStatus(ed_1,context->DisplayStatus(ed_1));
+    CheckDisplayStatus(ed_2,context->DisplayStatus(ed_2));
+  context->UpdateCurrentViewer();
+  return;
+}
+void AlignWithDir(const gp_Dir& dir){
+  ed->UpdateDir(dir);
+  ed_1->UpdateDir(dir);
+  ed_2->UpdateDir(dir);
+  CheckDisplayStatus(ed,context->DisplayStatus(ed));
+  CheckDisplayStatus(ed_1,context->DisplayStatus(ed_1));
+  CheckDisplayStatus(ed_2,context->DisplayStatus(ed_2));
+  context->UpdateCurrentViewer();
   return;
 }
 ~LineAIS_Shape(){

@@ -64,6 +64,10 @@ int UniqueId=-1;
 bool IsACopy=false;  
 bool hasMaterial=false; //by default the object does not have any material
 bool ColorIsSet=false;
+bool isEdgeSelected=false;
+bool isFaceSelected=false;
+bool isWireSelected=false;
+
 Graphic3d_MaterialAspect material;
 Quantity_Color initialColor;
 gp_Trsf initialTrsf; //compounded transformation
@@ -129,7 +133,7 @@ void UnhighlightFace(){
     return;
   }
   UnShadeFace(highlightIndex);
-
+  highlightIndex=-1;
   return;
 }
 
@@ -152,6 +156,7 @@ void UnhighlightEdge(){
     return;
   }
   UnShadeEdge(edgeHighlightIndex);
+  edgeHighlightIndex=-1;
   return;
 }
 

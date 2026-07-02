@@ -2,11 +2,12 @@
 #include<TopoDS_Shape.hxx>
 #include<string>
 #include<sstream>
-
+#include<BRep_Builder.hxx>
 #include<BinTools.hxx>
 #include<QtCore/QByteArray>
 #include<BRepTools.hxx>
 #include<InfoUtility.hpp>
+#include<Quantity_Color.hxx>
 using namespace std;
 using namespace INFO;
 //we will working with objects of QByte Array
@@ -68,5 +69,18 @@ inline TopoDS_Shape ToMainShape(const QString& str){
    }
    return shape;
  }
-
+inline QJsonObject ToJsonColorFormat(const Quantity_Color& col){
+   QJsonObject object;
+   object["R"]=col.Red();
+   object["G"]=col.Green();
+   object["B"]=col.Blue();
+   return object;
+}
+inline Quantity_Color ToColor(const QJsonObject& object){
+   double r=object["R"].toDouble();
+   double g=object["G"].toDouble();
+   double b=object["B"].toDouble();
+   Quantity_Color color(r,g,b,Quantity_TOC_RGB);
+  return color;
+}
 }

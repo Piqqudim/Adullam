@@ -16,6 +16,8 @@ std::unique_ptr<QAction> editLine=std::make_unique<QAction>(tr("Edit Curve"));
 std::unique_ptr<QAction> updateLineEdit=std::make_unique<QAction>(tr("Update Curve Edit Presentation"));
 std::unique_ptr<QAction> removeLineEdit=std::make_unique<QAction>(tr("Remove Curve Edit"));
 std::unique_ptr<QAction> nullify=std::make_unique<QAction>(tr("Nullify Curve Representation"));
+std::unique_ptr<QAction> update=std::make_unique<QAction>(tr("Update With Transform"));
+std::unique_ptr<QAction> alignWithDir=std::make_unique<QAction>(tr("Align With Direction"));
 EdgeMenu():QMenu(){
     showInfoAction=std::make_unique<QAction>(tr("Show Info"),nullptr);
     convertAction=std::make_unique<QAction>(tr("Convert To Edge Node"),nullptr);
@@ -26,6 +28,8 @@ EdgeMenu():QMenu(){
     editMenu->addAction(updateLineEdit.get());
     editMenu->addAction(removeLineEdit.get());
     editMenu->addAction(nullify.get());
+    editMenu->addAction(update.get()); //this updates the corresponding marker with the transform
+    editMenu->addAction(alignWithDir.get());
     filletAction->setCheckable(true);
     convertToWireAction->setCheckable(true);
     convertAction->setCheckable(true);

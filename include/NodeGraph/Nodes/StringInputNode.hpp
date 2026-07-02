@@ -9,7 +9,7 @@ using namespace QtNodes;
 class StringInputNode:public QtNodes::NodeDelegateModel{
 private:
 shared_ptr<StringNodeData> output_data;
-
+QString output;
 
 public:
 StringInputNode(){
@@ -25,8 +25,23 @@ unsigned int nPorts(PortType portType) const override{
     }
     return 0;
 }
+void SetData(const QString& data){
+    output=data;
+    if(output_data){
+        output_data->SetData(output);
+    }
+    else{
+        output_data=std::make_shared<StringNodeData>(tr(""));
+        output_data->SetData(output);
+    }
+    emit dataUpdated(0);
+    return;
+}
+QString Data() const{
+    return output;
+}
 QString caption() const override{
-    return tr("String Data");
+    return tr("String");
 } 
 QString name() const override{
     return caption();
@@ -36,14 +51,18 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
         case PortType::Out:{
             switch(portIndex){
                 case 0:
-                   return StringNodeData(tr(""),tr("")).type();
+                   return StringNodeData(tr("Output")).type();
             }
         }
     }
+    return {tr(""),tr("")};
 }
 std::shared_ptr<NodeData> outData(PortIndex port)  override{
-    output_data=std::make_shared<StringNodeData>(QString("God Bless"),tr(""));
-    return std::static_pointer_cast<NodeData>(output_data);
+    if(output_data){
+        return static_pointer_cast<NodeData>(output_data);
+    }
+    std::shared_ptr<NodeData> mptr;
+    return mptr;
 }
 void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
     return;

@@ -30,6 +30,9 @@
 #include<ConnectionIdUtils>
 #include<QtWidgets/QGraphicsRectItem>
 #include<MaterialEditorDialog.hpp>
+#include<FloatInputDialog.hpp>
+#include<BoolDialog.hpp>
+
 using namespace INFO;
 using namespace std;
 using QtNodes::GraphicsView;
@@ -52,7 +55,14 @@ We will have to disable categorized nodes by assigning unique Category to each n
 2).Delete Connection; //at this point,we are going to delete a connection object from the GraphModel and the SceneObjects
 3)
 
-*/ 
+*/
+enum INDEXNODESTATE{
+INDEX_TRANSFORM,
+INDEX_SHAPE,
+INDEX_WITHSHAPE,
+INDEX_DELETE,
+INDEX_NULL
+};
 enum SHAPEDRAW{
 SP_SHAPE,
 SP_EDGE,
@@ -123,8 +133,14 @@ std::unique_ptr<QAction> indexAction=std::make_unique<QAction>(tr("Index Node Ac
 std::unique_ptr<QMenu> indexMenu= std::make_unique<QMenu>();
 std::unique_ptr<QAction> showIndex2=std::make_unique<QAction>(tr("Show Assigned Index"));
 std::unique_ptr<QAction> IsEmpty=std::make_unique<QAction>(tr("Check Shape Status"));
-
+std::unique_ptr<QAction> nullifyAction=std::make_unique<QAction>(tr("Nullify Shape"));
+std::unique_ptr<QAction> nullifyTransAction=std::make_unique<QAction>(tr("Nullify Transform"));
+std::unique_ptr<QAction> nullifyWithShape=std::make_unique<QAction>(tr("Nullify Shape And Delete"));
+std::unique_ptr<QAction> deleteViewObject=std::make_unique<QAction>(tr("Delete View Object"));
+std::unique_ptr<FloatDialog>fdialog=std::make_unique<FloatDialog>();
+std::unique_ptr<BoolDialog> bdialog=std::make_unique<BoolDialog>();
 std::unique_ptr<MaterialEditorDialog> matDialog=std::make_unique<MaterialEditorDialog>();
+
 std::reference_wrapper<Handle(AIS_InteractiveContext)> context;
 
 DataFlowGraphModel* graph_model=nullptr;
@@ -154,6 +170,7 @@ RENDER_STATE rstate=RS_NULL;
 ContextMenuStatus cms=CMS_NULL;
 AUTO_COMPILE_ACTION compileAction=ACT_NULL;
 VIEW_ACTION  vaction=VA_NULL;
+INDEXNODESTATE indstate=INDEX_NULL;
 BooleanNode* receivedBoolNode=nullptr;
 bool IsBoolNodeSet=false;
 PrimitiveCubeNode* receivedCubeNode=nullptr;
@@ -166,6 +183,8 @@ SinglyEdgeNode* edgeNode=nullptr;
 SinglyFaceNode* faceNode=nullptr;
 SinglyMaterialNode* matnode=nullptr;
 IndexNode* indexnode=nullptr;
+FloatNode* floatnode=nullptr;
+BoolNode* bnode=nullptr;
 bool CanDrawPointNode=false;
 bool IsCubeNodeSet=false;
 bool IsFloatNodeSet=false;
@@ -190,6 +209,7 @@ DragStatus dstatus=DS_NULL;
 QRect BoundRect; //For the rubber band selection
 std::vector<int> nodeIDs;
 int IndexCounter=0;
+std::vector<size_t> IndexerIndices;
 NodeGraphWidget(QWidget* parent_widget,Handle(AIS_InteractiveContext)& context_1):GraphicsView(parent_widget),context{context_1}{
    Registry.reset(new NodeRegistry());
    //Register Model
@@ -199,7 +219,9 @@ NodeGraphWidget(QWidget* parent_widget,Handle(AIS_InteractiveContext)& context_1
   indexAction->setMenu(indexMenu.get());
   indexMenu->addAction(showIndex2.get());
   indexMenu->addAction(IsEmpty.get());
-  
+  indexMenu->addAction(nullifyAction.get());
+  indexMenu->addAction(nullifyTransAction.get());
+  indexMenu->addAction(nullifyWithShape.get());
    faceNodeMenu=std::make_unique<QMenu>();
    edgeNodeMenu=std::make_unique<QMenu>();
    faceNodeMenu->addAction(highlightFaceAction.get());
@@ -252,6 +274,7 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
    Registry->registerModel<ArrayToVectorNode>("Conversion");
    Registry->registerModel<SingleArrayToVectorNode>("Conversion");
    Registry->registerModel<BooleanNode>("Condition");
+   Registry->registerModel<BoolNode>(tr("Condition"));
    Registry->registerModel<SinglyTransformNode>("Transform");
    Registry->registerModel<SinglyShapeNode>("Primitive Shapes");
    Registry->registerModel<SinglyWireNode>("Primitive Shapes");
@@ -270,6 +293,8 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
    Registry->registerModel<DirXNode>(tr("Predefined Values"));
    Registry->registerModel<DirYNode>(tr("Predefined Values"));
    Registry->registerModel<DirZNode>(tr("Predefined Values"));
+   Registry->registerModel<PolynomialFilletShape>(tr("Fillet Shape Type"));
+   Registry->registerModel<QuasiAngularFilletShape>(tr("Fillet Shape Type"));
    Registry->registerModel<PositionedDirXNode>(tr("Predefined Values"));
    Registry->registerModel<PositionedDirYNode>(tr("Predefined Values"));
    Registry->registerModel<PositionedDirZNode>(tr("Predefined Values"));
@@ -297,7 +322,11 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
    Registry->registerModel<ClassOneFilletNode>(tr("CAD operations"));
    Registry->registerModel<ClassOneSurfaceSweepNode>(tr("CAD operations"));
    Registry->registerModel<ClassOneSolidSweepNode>(tr("CAD operations"));
-   
+   Registry->registerModel<MakeDraftNode>(tr("CAD operations"));
+   Registry->registerModel<FloatNode>(tr("DataTypes"));
+   Registry->registerModel<InvertDirectionNode>(tr("Direction"));
+   Registry->registerModel<MakeDraftAngleNode>(tr("CAD operations"));
+   Registry->registerModel<MakeEvolvedNode>(tr("CAD operations"));
    graph_model=new DataFlowGraphModel(Registry);
    scene_1=std::make_shared<DataFlowGraphicsScene>(*graph_model,this);
    GraphicsView::setScene(scene_1.get());
@@ -332,6 +361,11 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
   connect(selectPointAction.get(),&QAction::toggled,this,&NodeGraphWidget::OnSetIsPointSelected);
   connect(showIndex2.get(),&QAction::triggered,this,&NodeGraphWidget::OnShowIndexForIndexer);
   connect(IsEmpty.get(),&QAction::triggered,this,&NodeGraphWidget::CheckShapeIsEmpty);
+  connect(nullifyAction.get(),&QAction::triggered,this,&NodeGraphWidget::HandleSentNodeId); 
+  connect(nullifyTransAction.get(),&QAction::triggered,this,&NodeGraphWidget::HandleNullifyTransform);
+  connect(fdialog.get(),&FloatDialog::EmitDone,this,&NodeGraphWidget::HandleEmitDoneForFloatDialog);
+  connect(nullifyWithShape.get(),&QAction::triggered,this,&NodeGraphWidget::HandleNullifyWithShape);
+  connect(bdialog.get(),&BoolDialog::EmitDone,this,&NodeGraphWidget::OnHandleBool);
   return;
 }
 void OnFindSubFace(const int& parentindex,const int& childindex){
@@ -589,8 +623,10 @@ void mousePressEvent(QMouseEvent* event) override{
   }
   if(event->button()==Qt::LeftButton){
     receivedShape=nullptr;
-     matnode=nullptr;
-     indexnode=nullptr;
+     matnode=nullptr; //an object of material node
+     indexnode=nullptr; //an object of indexnode
+     floatnode=nullptr; //an object of floatnode
+     bnode=nullptr; //an object of boolnode
   if(dstatus==DS_DRAG){
    setDragMode(QGraphicsView::RubberBandDrag);
      return;
@@ -1092,6 +1128,14 @@ void mousePressEvent(QMouseEvent* event) override{
               if(indexnode){
                 return;
               }
+              floatnode=dynamic_cast<FloatNode*>(gmodel->Models().at(nodeObject->nodeId()).get());
+             if(floatnode){
+              return;
+             }
+             bnode=dynamic_cast<BoolNode*>(gmodel->Models().at(nodeObject->nodeId()).get());
+             if(bnode){
+              return;
+             }
              }
            }
            return;
@@ -1214,7 +1258,7 @@ void emitExistingFile(const QString& str);
 void CmdIsRendered();
 void EmitParentChildIndex(const int& p,const int& c);
 void EmitFaceParentChildIndex(const int& p,const int& c);
-
+void EmitShapeIndexForNullify(const int& index);
 //public slots
 public slots:
 void OnReceiveAIS_Shape(const Handle(CustomAIS_Shape)& shape){
@@ -1325,12 +1369,18 @@ void OnDeleteNode(const NodeId& nodeId){
     return;
   }
       
-  
-   gscene->GraphModel()->deleteNode(nodeId);
+  gscene->GraphModel()->deleteNode(nodeId);
    updateSceneRect(gscene->sceneRect());
   return;
 }
 void OnDeleteHandler(){
+   if(indexnode){
+    if(selectedNode){
+        IndexerIndices.push_back(selectedNode->nodeId());
+    }
+    cout<<"Successful Deletion For Index Node"<<"\n";
+    selectedNode=nullptr;
+  }
   if(selectedNode){
     OnDeleteNode(selectedNode->nodeId());
   }
@@ -1678,12 +1728,18 @@ void OnHandleSetFalse(){
   return;
 }
 void OnHandleEdit(){
-  if(!matnode){
-    LoadMessage(tr(""),tr("No Singly material node selected"));
-    return;
-  }
+  if(matnode){
   matDialog->SetMatNode(matnode);
   matDialog->exec();
+  }
+  if(floatnode){
+    fdialog->SetFloat(floatnode->GetData());
+    fdialog->exec();
+  }
+  if(bnode){
+    bdialog->SetValue(bnode->Value());
+    bdialog->exec();
+  }
   return;
 }
 void OnHandleSentString(const QString& str){
@@ -1700,8 +1756,14 @@ void OnHandleSentString(const QString& str){
        gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(scenePos));
        auto shape_node=dynamic_cast<IndexNode*>(gscene->GraphModel()->Models().at(nodeId).get());
        if(shape_node){
+         if(!IndexerIndices.empty()){
+           shape_node->SetIndex(IndexerIndices.at(IndexerIndices.size()-1));
+           IndexerIndices.pop_back();
+         }
+         else{
          shape_node->SetIndex(IndexCounter);
          ++IndexCounter;
+         }
           std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
              ngo->setVisible(true);
@@ -1748,6 +1810,48 @@ void CheckShapeIsEmpty(){
       LoadMessage(tr(""),tr("Shape Is Not Empty"));
     }
   }
+}
+void HandleSentNodeId(){
+  if(indexnode){
+    indstate=INDEX_SHAPE;
+    indexnode->EmitEmptyShape();
+     emit EmitShapeIndexForNullify(indexnode->index());
+  }
+  return;
+}
+void HandleNullifyTransform(){
+  if(indexnode){
+    indstate=INDEX_TRANSFORM;
+      emit EmitShapeIndexForNullify(indexnode->index());
+  }
+  return;
+}
+void HandleNullifyWithShape(){
+  if(indexnode){
+    indstate=INDEX_WITHSHAPE;
+     emit EmitShapeIndexForNullify(indexnode->index());
+  }
+
+  return;
+}
+void HandleDeleteViewObject(){
+  if(indexnode){
+    indstate=INDEX_DELETE;
+     emit EmitShapeIndexForNullify(indexnode->index());
+  }
+  return;
+}
+void HandleEmitDoneForFloatDialog(){
+  if(floatnode){
+    floatnode->SetData(fdialog->GetData());
+  }
+  return;
+}
+void OnHandleBool(){
+  if(bnode){
+    bnode->SetValue(bdialog->GetValue());
+  }
+  return;
 }
 
 /*void OnUpdateNodeModel(const QVariant&  value){

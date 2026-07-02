@@ -8,6 +8,7 @@ Q_OBJECT
 public:
 QDoubleValidator* validator=nullptr;
 bool isConverted=false;  //This tells us if we have successfully converted from string to float,by default,it is false
+float result=0.0f;
 public:
 
 DoubleEdit(QWidget* parent,const QString& content,const size_t& decimal):QLineEdit(content,parent){
@@ -28,7 +29,9 @@ QLocale GetLocale() const{
         validator=nullptr;
     }
 }
-
+float Result() const{
+    return result;
+}
 signals:
 void GetValue(const float& value);
 
@@ -40,6 +43,7 @@ void OnConvertToFloat(const QString& str){
     //At this point,the string is not empty
     float value=GetLocale().toFloat(str,&isConverted);
     emit GetValue(value);
+    result=value;
     return;
 }
 void OnTextEdited(const QString& str){

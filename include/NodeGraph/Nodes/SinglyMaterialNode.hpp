@@ -1,11 +1,11 @@
 #pragma once
 #include<NodeDelegateModel>
 #include<MaterialNodeData.hpp>
-
+#include<JsonShapeConverter.hpp>
 #include<memory>
 using namespace std;
 using namespace QtNodes;
-
+using namespace JsonConverter;
 //so we can not apply material properties to objects of type 5 to 7
 class SinglyMaterialNode:public NodeDelegateModel{
 private:
@@ -15,6 +15,25 @@ Graphic3d_MaterialAspect mat;
 public:
 SinglyMaterialNode(){
     return;
+}
+QJsonObject save() const override{
+    QJsonObject object=NodeDelegateModel::save();
+    object["Diffuse"]=ToJsonColorFormat(mat.DiffuseColor());
+    object["Specular"]=ToJsonColorFormat(mat.SpecularColor());
+    object["Emissive"]=ToJsonColorFormat(mat.EmissiveColor());
+    object["Ambient"]=ToJsonColorFormat(mat.AmbientColor());
+    object["Transparency"]=mat.Transparency();
+    object["Refractive_Index"]=mat.RefractionIndex();
+    return object;
+}
+void load(const QJsonObject& object) override{
+    mat.SetDiffuseColor(ToColor(object["Diffuse"].toObject()));
+    mat.SetAmbientColor(ToColor(object["Ambient"].toObject()));
+    mat.SetSpecularColor(ToColor(object["Specular"].toObject()));
+    mat.SetEmissiveColor(ToColor(object["Emissive"].toObject()));
+    mat.SetTransparency(object["Transparency"].toDouble(1.0));
+    mat.SetRefractionIndex(object["Refractive_Index"].toDouble(1.0));
+    SetMaterial(mat);
 }
 void SetMaterial(const Graphic3d_MaterialAspect& mat1){
   mat=mat1;

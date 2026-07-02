@@ -133,8 +133,9 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
     connect(centralwidget_1.get(),&DrawingCentralWidget::OnSetPreviousColor,this,&Window_Frame::OnSetPreviousColor);
     connect(centralwidget_1.get(),&DrawingCentralWidget::EmitShape,this,&Window_Frame::OnHandleEmittedShape);
     connect(centralwidget_1.get(),&DrawingCentralWidget::EmitTransformedShape,this,&Window_Frame::OnHandleEmittedTrsfShape);
-    connect(sceneSettingWidget->hilisection->FaceColorWidget(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnSpawnColorSelectionWidget);
+    connect(sceneSettingWidget->hilisection->FaceColorWidget(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnSpawnColorForBackgroundColor);
     connect(colorwidget_1.get(),&ColorCollectionWidget::GetSelectedColor,this,&Window_Frame::OnSetSelectionColorFromColorWidget);
+    connect(colorDialog_1->ColorWidget(),&ColorCollectionWidget::GetSelectedColor,this,&Window_Frame::OnHandleColorForBackground);
     connect(centralwidget_1->ConstructPointNodeAction.get(),&QAction::toggled,this,&Window_Frame::OnHandleConstructPointNode);
     connect(centralwidget_1.get(),&DrawingCentralWidget::OnSendConvertValue,this,&Window_Frame::OnSetValuesForTriple);
     connect(centralwidget_1->ConstructTransformNodeAction.get(),&QAction::toggled,this,&Window_Frame::OnSetNodeTransformBool);
@@ -176,7 +177,9 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
    connect(fileSystemWidget->fileMenu->deleteAction.get(),&QAction::triggered,this,&Window_Frame::OnDeleteIndex);
    connect(fileSystemWidget->fileMenu->copyFilePathAction.get(),&QAction::triggered,this,&Window_Frame::CopyPath);
    connect(fileSystemWidget->fileMenu->copyRelativePathAction.get(),&QAction::triggered,this,&Window_Frame::CopyRelativeFilePath);
-   connect(edgeWidget->colorPane(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnHandleEdgePrs);
+   connect(edgeWidget->colorPane(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnInitColorDialog);
+   connect(colorDialog->ColorWidget(),&ColorCollectionWidget::GetSelectedColor,this,&Window_Frame::OnGetColorFromDialog);
+   connect(colorDialog_1->ColorWidget(),&ColorCollectionWidget::GetSelectedColor,this,&Window_Frame::OnHandleColorForBackground);
    connect(centralwidget_1->LinePrsAction,&QAction::triggered,this,&Window_Frame::OnShowEdgeWidget);
    connect(centralwidget_1->shouldSetAction.get(),&QAction::toggled,this,&Window_Frame::OnHandleShouldSet);
    connect(nodewidget.get(),&NodeGraphWidget::OnEmitShapeId,this,&Window_Frame::OnHandleShapeId);
@@ -205,6 +208,7 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
    connect(centralwidget_1->createMaterialNode.get(),QAction::toggled,this,&Window_Frame::OnSpawnMatNodeWidget);
    connect(colorwidget_2.get(),&ColorCollectionWidget::GetSelectedColor,this,&Window_Frame::OnSetMatNodeValue);
    connect(centralwidget_1->findByIndexer.get(),&QAction::triggered,this,&Window_Frame::OnFindIndexer);
+   connect(nodewidget.get(),&NodeGraphWidget::EmitShapeIndexForNullify,this,&Window_Frame::OnHandleEmittedIndexToNullifyShape);
 }
 
 

@@ -48,7 +48,7 @@ class Window_Frame:public QMainWindow{
     std::unique_ptr<QAction> EditorAction;  //this is not a synonym of view action
     std::unique_ptr<NodeGraphWidget> nodewidget;
     std::unique_ptr<QStatusBar> statusbar_1;
-    
+    std::unique_ptr<ColorDialog> colorDialog=std::make_unique<ColorDialog>(); //ColorDialog for pane
     std::unique_ptr<BooleanWidget> boolWidget;
     
     std::unique_ptr<SceneSettingWidget> sceneSettingWidget;    
@@ -61,6 +61,7 @@ class Window_Frame:public QMainWindow{
     std::unique_ptr<QSplitter> Splitter;
     std::unique_ptr<MaterialNodeWidget> matnodewidget=std::make_unique<MaterialNodeWidget>();
     std::unique_ptr<EdgeInfoWidget> edgeInfoWidget=std::make_unique<EdgeInfoWidget>();
+    std::unique_ptr<ColorDialog> colorDialog_1=std::make_unique<ColorDialog>();
     ModelMenu* ModelActionMenu=nullptr;
     FileMenu* FileActionMenu=nullptr;
     QMenu* ModifyActionMenu=nullptr;
@@ -624,7 +625,7 @@ void OnBaseColorHandler(size_t idx){
     dockwidget_2->RemoveWidget();
   }
   dockwidget_2->SetWidget(colorwidget.get());
-   colorwidget->show();
+   
   return;
 }
 
@@ -785,7 +786,7 @@ void OnChooseAmbientColor(){
   }
   objprswidget->propsection()->OnSetProperties(colorwidget->GetChosenColor());
   objprswidget->propsection()->SetObjectAmbientColor(centralwidget_1->context,centralwidget_1->ChosenShape);
-   centralwidget_1->prevChosenMat=objprswidget->propsection()->OutputMaterial();
+  centralwidget_1->prevChosenMat=objprswidget->propsection()->OutputMaterial();
    
    
    return;
@@ -2007,7 +2008,80 @@ void OnHandleBaseColor(const size_t& ind){
    nodewidget->FindIndexerNode(centralwidget_1->ChosenShape->ID());
    return;
  }
+void OnInitColorDialog(size_t index){
+  colorDialog->exec();
+  return;
+}
+void OnGetColorFromDialog(){
+   if(centralwidget_1->curveShape){
+     centralwidget_1->curveShape->SetColor(colorDialog->ColorWidget()->GetChosenColor());
+     centralwidget_1->context->Redisplay(centralwidget_1->curveShape,true);
+   }
+   else{
+    if(centralwidget_1->ChosenShape){
+      centralwidget_1->ChosenShape->SetColor(colorDialog->ColorWidget()->GetChosenColor());
+      centralwidget_1->context->Redisplay(centralwidget_1->ChosenShape,true);
+    }
+   }
+  return;
+}
+void OnHandleEmittedIndexToNullifyShape(const int& index){
+  switch(nodewidget->indstate){
+  case INDEX_SHAPE:{
+  if(index==-1){
+    std::cout<<"Negative Index "<<", Cannot Search"<<"\n";
+    return;
+  }
+  centralwidget_1->Shapes.at(index)->SetShape(TopoDS_Shape());
+  centralwidget_1->context->Redisplay(centralwidget_1->Shapes.at(index),false);
+  centralwidget_1->view->Redraw();
+  return;
+  }
+  case INDEX_TRANSFORM:{
+    if(index==-1){
+       return;
+    }
+    Handle(CustomAIS_Shape) cshape=centralwidget_1->Shapes.at(index);
 
+    centralwidget_1->context->SetLocation(cshape,TopLoc_Location(gp_Trsf()));
+    centralwidget_1->context->UpdateCurrentViewer();
+    return;
+  }
+  case INDEX_WITHSHAPE:{
+    if(index==-1){
+      return;
+    }
+    centralwidget_1->Shapes.at(index)->SetShape(TopoDS_Shape());
+    centralwidget_1->context->SetLocation(centralwidget_1->Shapes.at(index),TopLoc_Location(gp_Trsf()));
+    centralwidget_1->context->Redisplay(centralwidget_1->Shapes.at(index),false);
+    centralwidget_1->context->UpdateCurrentViewer();    
+    return;
+  }
+  case INDEX_DELETE:{
+    if(index==-1){
+      return;
+    }
+    centralwidget_1->context->Remove(centralwidget_1->Shapes.at(index),true);
+    centralwidget_1->Shapes.erase(index);
+    return;
+  }
+  default:
+    return;
+  }
+  return;
+}
+void OnSpawnColorForBackgroundColor(const size_t& ind){
+  if(colorDialog_1){
+    colorDialog_1->exec();
+  }
+  return;
+}
+void OnHandleColorForBackground(){
+  sceneSettingWidget->hilisection->FaceColorWidget()->SetColorFromOC(colorDialog_1->ColorWidget()->GetChosenColor());
+  centralwidget_1->view->SetBackgroundColor(colorDialog_1->ColorWidget()->GetChosenColor());
+  centralwidget_1->view->Redraw();
+  return;
+}
 };
 
 

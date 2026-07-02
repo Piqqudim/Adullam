@@ -69,7 +69,13 @@
 #include<SinglyAxisNode.hpp>
 #include<SinglyMaterialNode.hpp>
 #include<IndexNode.hpp>
-
+#include<FloatNode.hpp>
+#include<PolynomialFilletShape.hpp>
+#include<InvertDirectionNode.hpp>
+#include<BoolNode.hpp>
+#include<MakeDraftNode.hpp>
+#include<MakeDraftAngleNode.hpp>
+#include<MakeEvolvedNode.hpp>
 
 
 
