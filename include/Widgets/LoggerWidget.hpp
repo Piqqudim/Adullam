@@ -3,6 +3,8 @@
 #include<QtWidgets/QTextEdit> 
 #include<memory>
 #include<QtGui/QAction>
+#include<QtWidgets/QMenu>
+
 using namespace std;
 
 class LoggerWidget:public QTextEdit{
@@ -15,7 +17,6 @@ LoggerWidget(QWidget* widget=nullptr):QTextEdit(widget){
     setReadOnly(true);
     setLineWrapMode(QTextEdit::NoWrap);
     clearAction=std::make_unique<QAction>(tr("Clear"));
-    saveLogAction=std::make_unique<QAction>(tr("Save Log"));
     createStandardContextMenu()->addAction(clearAction.get());
     
     connect(clearAction.get(),&QAction::triggered,this,&LoggerWidget::Clear);
@@ -35,8 +36,8 @@ void AppendWarning(const QString& text){
   return;
 }
 void AppendInfo(const QString& info){
-    setTextCursor(QColor(Qt::gray));
-    AppendLog(text);
+    setTextColor(QColor(Qt::gray));
+    AppendLog(info);
     return;
 }
 signals:
