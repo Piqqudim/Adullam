@@ -51,11 +51,11 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
      tabwidget_1->addTab(nodewidget.get(),tr("NodeGraph"));
      tabwidget_1->addTab(fileSystemWidget.get(),tr("File System"));
      fnodewidget.reset(new FloatNodeWidget(tr("Input"),0.0));
-     surface_widget->SetSurfaceInfos(shape);
+     
 
      setCentralWidget(Splitter.get());
      
-     dockwidget_1->SetWidget(surface_widget.get());
+    
      
 
      addDockWidget(Qt::RightDockWidgetArea,dockwidget_1.get());
@@ -209,6 +209,7 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
    connect(colorwidget_2.get(),&ColorCollectionWidget::GetSelectedColor,this,&Window_Frame::OnSetMatNodeValue);
    connect(centralwidget_1->findByIndexer.get(),&QAction::triggered,this,&Window_Frame::OnFindIndexer);
    connect(nodewidget.get(),&NodeGraphWidget::EmitShapeIndexForNullify,this,&Window_Frame::OnHandleEmittedIndexToNullifyShape);
+   connect(centralwidget_1.get(),&DrawingCentralWidget::EmitGatherWire,this,&Window_Frame::OnHandleGatherWires);
 }
 
 

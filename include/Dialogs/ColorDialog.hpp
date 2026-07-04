@@ -37,6 +37,9 @@ ColorDialog(QWidget* parent=nullptr):QDialog(parent){
 ColorCollectionWidget* ColorWidget() const{
     return colorwidget.get();
 }
+Quantity_Color GetColor() const{
+  return ColorWidget()->GetChosenColor();
+}
 void SetTitle(const QString& title){
     setWindowTitle(title);
     return;

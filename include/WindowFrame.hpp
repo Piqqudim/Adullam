@@ -2082,6 +2082,20 @@ void OnHandleColorForBackground(){
   centralwidget_1->view->Redraw();
   return;
 }
+void OnHandleGatherWires(bool checked){
+ if(checked){
+  if(centralwidget_1->wireselectors->Wires().empty()){
+    LoadMessage(tr("Cannot Convert"),tr("No Selected Wire(s),Select Wires "));
+    return;
+  }
+   nodewidget->wires=centralwidget_1->wireselectors->Wires();
+   nodewidget->shapedraw=SP_WIRES;
+ }
+ else{
+   nodewidget->shapedraw=SP_NULL;
+ }
+  return;
+}
 };
 
 

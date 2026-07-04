@@ -76,7 +76,8 @@
 #include<MakeDraftNode.hpp>
 #include<MakeDraftAngleNode.hpp>
 #include<MakeEvolvedNode.hpp>
-
+#include<SinglyWireVector.hpp>
+#include<LoftNode.hpp>
 
 
 

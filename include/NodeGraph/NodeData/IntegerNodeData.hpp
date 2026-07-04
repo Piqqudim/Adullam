@@ -42,11 +42,19 @@ private:
 int m_Data;
 QString m_Name;
 public:
+IntegerNodeData(const QString& name=QString()){
+ m_Name=name;
+ return;
+}
 IntegerNodeData(const int& data,const QString& name):m_Data(data),m_Name{name}{
 
 }
 int Data() const{
     return m_Data;
+}
+void SetData(const int& val){
+    m_Data=val;
+    return;
 }
 NodeDataType type() const override{
     return {"Integer",m_Name};

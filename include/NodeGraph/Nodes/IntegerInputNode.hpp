@@ -8,7 +8,7 @@ using namespace QtNodes;
 class IntegerInputNode:public QtNodes::NodeDelegateModel{
 private:
 std::shared_ptr<IntegerNodeData> output_data;
-
+int output=0;
 public:
 IntegerInputNode(){
 
@@ -23,7 +23,21 @@ unsigned int nPorts(PortType portType) const override{
     }
     return 0;
 }
-
+void SetOutput(const int& output_1){
+    output=output_1;
+    if(output_data){
+        output_data->SetData(output);
+    }
+    else{
+        output_data=std::make_shared<IntegerNodeData>(tr(""));
+        output_data->SetData(output);
+    }
+    emit dataUpdated(0);
+    return;
+}
+int Output() const {
+    return output;
+}
 QString caption() const override{
     return tr("Integer");
 }
@@ -41,7 +55,6 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
     }
 }
 std::shared_ptr<NodeData> outData(PortIndex port)  override{
-    output_data=std::make_shared<IntegerNodeData>(7,tr(""));
     return static_pointer_cast<NodeData>(output_data);
 }
 void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{

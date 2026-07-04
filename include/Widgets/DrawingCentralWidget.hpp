@@ -114,6 +114,8 @@
 #include<BSplineAIS_Shape.hpp>
 #include<DrawBSplineDialog.hpp>
 #include<CollectiveAIS_Shape.hpp>
+#include<EditArcDialog.hpp>
+#include<ArcShape.hpp>
 //This file will enter 10,000 LOC
 //We have to create a dialog for viewport setting,Drawing widget is also a viewport
 //On Object Creation,deletion,editing,Transform
@@ -132,7 +134,8 @@ enum SELECTED_STATE{
   NULL_SELECT,
   EDGE_SELECT,
   FACE_SELECT,
-  WIRE_SELECT
+  WIRE_SELECT,
+  WIRES_SELECT
 };
 enum MANIP_CURVE{
  MC_NULL,
@@ -248,6 +251,7 @@ std::unique_ptr<QAction> deleteAxisObject=std::make_unique<QAction>(tr("Delete")
 std::unique_ptr<QAction> faceNormalAction=std::make_unique<QAction>(tr("Assume Face Centre Normal"));
 std::unique_ptr<QAction> convertFacePointAction=std::make_unique<QAction>(tr("Convert To Point Node"));
 std::unique_ptr<QAction> drawAction=std::make_unique<QAction>(tr("Draw Line"));
+std::unique_ptr<QAction> gatherWire=std::make_unique<QAction>(tr("Gather Profiles"));
 std::unique_ptr<WireFilletMenu> wireFilletMenu=std::make_unique<WireFilletMenu>();
 std::unique_ptr<DrawCircleMenu> drawCircle=std::make_unique<DrawCircleMenu>();
 std::unique_ptr<DrawPolygonDialog> drawPolygonDialog=std::make_unique<DrawPolygonDialog>();
@@ -293,6 +297,10 @@ std::unique_ptr<QAction> arcDraw=std::make_unique<QAction>(tr("Execute Arc"));
 std::unique_ptr<QMenu> editCircleMenu=std::make_unique<QMenu>();
 std::unique_ptr<QAction> editCircleAction=std::make_unique<QAction>(tr("Edit Circle Radius"));//this shows the previous value
 std::unique_ptr<QAction> cancelEditCircle=std::make_unique<QAction>(tr("Destroy"));
+std::unique_ptr<QMenu> groupWireMenu=std::make_unique<QMenu>();
+std::unique_ptr<QAction> deleteGroupWire=std::make_unique<QAction>(tr("Delete"));
+std::unique_ptr<QAction> endGroupWire=std::make_unique<QAction>(tr("End Wire Group Selection"));
+std::unique_ptr<QAction> convertToWires=std::make_unique<QAction>(tr("Convert To Wire Nodes"));
 std::unique_ptr<QAction> updateWithTransform=std::make_unique<QAction>(tr("Update"));
 std::unique_ptr<DrawBezierDialog> drawBezierDialog=std::make_unique<DrawBezierDialog>();
 std::unique_ptr<TransientPolygon> transPolygon;
@@ -322,9 +330,13 @@ std::unique_ptr<QAction> endMove=std::make_unique<QAction>(tr("End Move"));
 std::unique_ptr<QAction> loadImage=std::make_unique<QAction>(tr("Load Image"));
 std::unique_ptr<ImageDialog> imageDialog=std::make_unique<ImageDialog>();
 std::unique_ptr<DrawBSplineDialog> bsplineDialog=std::make_unique<DrawBSplineDialog>();
+std::unique_ptr<WireSelector> wireselector=std::make_unique<WireSelector>();
+std::unique_ptr<ShapeSelector> shapeselector=std::make_unique<ShapeSelector>();
 std::unique_ptr<EdgeSelector> edgeselector=std::make_unique<EdgeSelector>();
 std::unique_ptr<FaceSelector> faceselector=std::make_unique<FaceSelector>();
-
+std::unique_ptr<CollectiveWireSelector> wireselectors=std::make_unique<CollectiveWireSelector>();
+std::unique_ptr<EditArcDialog> editarcDialog=std::make_unique<EditArcDialog>();
+std::unique_ptr<QAction> selectWires=std::make_unique<QAction>(tr("Select Wires"));
 MANIP_CURVE manipcurve=MC_NULL;
 bool IsShapePrsAdded=false;   //this is to keep track of whether shape presentation menu item has been added
  TopoDS_Face selFace;
@@ -399,7 +411,7 @@ Handle(BezierAIS_Shape) bshape;
 Handle(BSplineAIS_Shape) bsplineShape;
 Handle(BSplineAIS_Shape) drawnBsplineShape;
 Handle(EditCircleShape) editShape;
-
+Handle(ArcAIS_Shape) arcShape;
 Quantity_Color currentShapeColor;
 gp_Pnt2d lastpoint; 
 gp_Pnt2d panlastpoint;   //this will store the pan 
@@ -478,7 +490,7 @@ GP_STATE gpsstate=GPS_NULL;
 Handle(Image_AlienPixMap) nodeImage;
 Handle(AIS_TexturedShape) textureShape;
 Handle(AIS_TexturedShape) selTextureShape;
-std::vector<Handle(Image_AlienPixMap)> Images; //for textures
+
 public:
   DrawingCentralWidget(QWidget* parent_widget):QWidget(parent_widget){
     std::cout<<"I am in Drawing CentralWidget"<<"\n";
@@ -499,7 +511,9 @@ public:
     edgeMenu=std::make_unique<EdgeMenu>();
     faceMenu=std::make_unique<FaceMenu>();
     faceMenu->addAction(faceNormalAction.get());
+   
     convertFacePointAction->setCheckable(true);
+   
     faceMenu->addAction(convertFacePointAction.get());
     bMenu=std::make_unique<BezierMenu>();
     spMenu=std::make_unique<BSplineMenu>();
@@ -510,7 +524,7 @@ public:
     filletDialog=make_unique<FilletDialog>();
     chamferDialog=make_unique<ChamferDialog>();
     UndoAction=UndoStack->createUndoAction(this,tr("&Undo"));
-
+    
     RedoAction=UndoStack->createRedoAction(this,tr("&Redo"));
     UndoAction->setShortcut(Qt::CTRL|Qt::Key_S);
     RedoAction->setShortcut(Qt::CTRL|Qt::Key_K);
@@ -581,7 +595,10 @@ public:
     shouldSetAction->setCheckable(true);
    polyMenu=std::make_unique<PolygonMenu>();
     pointMenu->addAction(convertPoint.get());
-
+    groupWireMenu->addAction(deleteGroupWire.get());
+    groupWireMenu->addAction(endGroupWire.get());
+    convertToWires->setCheckable(true);
+    groupWireMenu->addAction(convertToWires.get());
     DockMenus=new QMenu;
     drawAction->setCheckable(true);
     showSettingAction=new QAction(tr("Show SceneSettings"),nullptr);  
@@ -611,6 +628,7 @@ public:
     drawBezierMenu->addAction(continueBezier.get());
     drawBezierMenu->addAction(endBezier.get());
     DockMenus->addAction(showSettingAction);
+
     DockMenus->addAction(createMaterialNode.get());
     DockMenus->addAction(UndoAction);
     DockMenus->addAction(RedoAction);
@@ -631,6 +649,8 @@ public:
     DockMenus->addAction(drawBezierByDialog.get());
     DockMenus->addAction(drawBSplineByDialogAction.get());
     DockMenus->addAction(GatherPointAction.get());
+    gatherWire->setCheckable(true);
+    DockMenus->addAction(gatherWire.get());
     DockMenus->addAction(GatherCurveAction.get());
     DockMenus->addAction(loadImage.get());
     DockMenus->addAction(GatherBSplineAction.get());
@@ -650,7 +670,8 @@ public:
  circleEditDialog->SetContext(context);
  bsplineDialog->SetContext(context);
  faceselector->SetContext(context);
- transPolygon=std::make_unique <TransientPolygon>(std::ref(context));
+ wireselectors->SetContext(context);
+ transPolygon=std::make_unique<TransientPolygon>(std::ref(context));
  
  transCurve=make_unique<TransientBezierCurve>(std::ref(context));
  bspCurve=make_unique<TransientBSplineCurve>(std::ref(context));
@@ -668,8 +689,9 @@ view->MustBeResized();
  evt_manager.SetAllowZooming(false);
  evt_manager.SetAllowPanning(false);
  evt_manager.SetAllowRotation(false);
-
-
+ editarcDialog->SetContext(context);
+ wireselector->SetContext(context);
+ shapeselector->SetContext(context);
  SphereShape=BRepPrimAPI_MakeSphere(gp_Ax2(gp_Pnt(0.0,0.0,50.0),gp_Dir(0.0,0.0,1.0)),50.0).Shape();
  ConeShape=BRepPrimAPI_MakeCone(gp_Ax2(gp_Pnt(0.0,0.0,0.0),gp_Dir(1.0,0.0,0.0)),0.0,60.0,50.0).Shape();
  CylShape=BRepPrimAPI_MakeCylinder(gp_Ax2(gp_Pnt(0.0,0.0,50.0),gp_Dir(0.0,1.0,0.0)),50.0,80.0).Shape();
@@ -822,6 +844,11 @@ view->MustBeResized();
  connect(startBSpline.get(),&QAction::triggered,this,&DrawingCentralWidget::OnStartPointForBSpline);
  connect(continueBSpline.get(),&QAction::triggered,this,&DrawingCentralWidget::OnContinueBSpline);
  connect(endBSpline.get(),&QAction::triggered,this,&DrawingCentralWidget::OnEndBSpline);
+ connect(editarcDialog.get(),&EditArcDialog::EmitDone,this,&DrawingCentralWidget::OnHandleArcEditDialogDone);
+ connect(gatherWire.get(),&QAction::toggled,this,&DrawingCentralWidget::OnGatherWire);
+ connect(endGroupWire.get(),&QAction::triggered,this,&DrawingCentralWidget::EndSelectWires);
+ connect(convertToWires.get(),&QAction::toggled,this,&DrawingCentralWidget::OnSelectWires);
+ 
  return;
 
 }
@@ -1742,6 +1769,10 @@ void mousePressEvent(QMouseEvent* event) override{
      Eshape=ES_NULL;
      edgeselector->Nullify();
      faceselector->Nullify();
+     arcShape.Nullify();
+     wireselector->Nullify();
+     shapeselector->Nullify();
+     
         /*
         we have to find the intersection of the ray and the surface in question
         using surfaceWidgetShape
@@ -1865,7 +1896,50 @@ void mousePressEvent(QMouseEvent* event) override{
     
     context->InitSelected();
     while(context->MoreSelected()){
-      if(CurrentSelMode==3){
+      if(CurrentSelMode==3){ //wire selection
+      if(gatherWire->isChecked()){
+      
+        Handle(SelectMgr_EntityOwner) owner=context->SelectedOwner();
+        if(!owner){
+          LoadMessage(tr(""),tr("Failed To Cast to Wire(Loop)"));
+          return;
+        }
+        Handle(StdSelect_BRepOwner) entity=Handle(StdSelect_BRepOwner)::DownCast(owner);
+         if(!entity){
+          LoadMessage(tr(""),tr("Failed To Cast to Point"));
+          return;
+        }
+         Handle(AIS_InteractiveObject) obShape=Handle(AIS_InteractiveObject)::DownCast(owner->Selectable());
+        if(!obShape){
+          cout<<"Failed To Cast"<<"\n";
+          return;
+        } 
+        selShape=Handle(CustomAIS_Shape)::DownCast(obShape);
+         wireShape=selShape;
+        
+        if(!owner){
+           std::cout<<"Failed To Cast To an object of SelectMgr_EntityOwner"<<"\n";
+          return;
+        }
+        TopoDS_Shape entShape=entity->Shape();
+        if(entShape.ShapeType()!=TopAbs_WIRE){
+            LoadMessage(tr(""),tr("The Selected Shape is not a wire(loop)"));
+            return;
+        }
+        selWire=TopoDS::Wire(entShape);
+        if(selWire.IsNull()){
+          LoadMessage(tr(""),tr("Cannot Cast to wire"));
+          return;
+        }
+        wireselectors->AddToSelection(wireShape,selWire);
+        auto pnt=context->MainSelector()->PickedPoint(1);
+        LineStartPoint=pnt;
+        st1=WIRES_SELECT;
+        
+        return;
+      }
+      else{
+         wireselector->UnSelectWire();
          Handle(SelectMgr_EntityOwner) owner=context->SelectedOwner();
         if(!owner){
           LoadMessage(tr(""),tr("Failed To Cast to Wire(Loop)"));
@@ -1883,6 +1957,7 @@ void mousePressEvent(QMouseEvent* event) override{
         } 
         selShape=Handle(CustomAIS_Shape)::DownCast(obShape);
          wireShape=selShape;
+        wireselector->SetSelectedShape(wireShape);
         if(!owner){
            std::cout<<"Failed To Cast To an object of SelectMgr_EntityOwner"<<"\n";
           return;
@@ -1897,10 +1972,14 @@ void mousePressEvent(QMouseEvent* event) override{
           LoadMessage(tr(""),tr("Cannot Cast to wire"));
           return;
         }
+        wireselector->SetSelectedWire(selWire);
         auto pnt=context->MainSelector()->PickedPoint(1);
         LineStartPoint=pnt;
         st1=WIRE_SELECT;
+        wireselector->SelectWire();
         return;
+      }
+      return;
       }
      if(CurrentSelMode==1){
         Handle(SelectMgr_EntityOwner) owner=context->SelectedOwner();
@@ -2114,6 +2193,7 @@ void mousePressEvent(QMouseEvent* event) override{
     }
       
     PrintSelection(CurrentSelMode);
+    shapeselector->UnSelectShape();
    Handle(SelectMgr_EntityOwner) owner=context->SelectedOwner();
    Handle(AIS_Axis) axisObject=Handle(AIS_Axis)::DownCast(owner->Selectable());
    if(axisObject){
@@ -2237,11 +2317,14 @@ void mousePressEvent(QMouseEvent* event) override{
       SetGizmoForWholeObject();
       DisplayGizmoOnObject(object); //
       CheckDisplayStatus(ObjectGizmo,context->DisplayStatus(ObjectGizmo));
-      
+      Handle(AIS_Shape) tmpshape=Handle(AIS_Shape)::DownCast(object);
+      if(tmpshape){
+        shapeselector->SetSelectedShape(tmpshape);
+      }
       view->Redraw(); //flushes all the arrays of floating points
       emit QueryDebugMessage(str);
 }    
-     
+     shapeselector->SelectShape();   
      Handle(CustomAIS_Shape) OShape=Handle(CustomAIS_Shape)::DownCast(object);
     if(!OShape.IsNull()){
      //ChosenShape still points to the same object as owner->Selectable()
@@ -2280,6 +2363,10 @@ void mousePressEvent(QMouseEvent* event) override{
  }
 }     
 else if(event->button()==Qt::RightButton){
+  if(st1==WIRES_SELECT){
+    groupWireMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
   if(dc==DC_MOVE){
    moveMenu->exec(event->globalPosition().toPoint());
    return;
@@ -2774,6 +2861,7 @@ signals:
   void OnEmitWire(const TopoDS_Wire& wire); //On Send Wire.
   void OnEmitSent();
   void OnSentFalseValue();
+  void EmitGatherWire(bool truth);
   void EmitAxis(const gp_Ax2& axis);
   void OnSendScaleTransform(const gp_Trsf& scaletransform);
   void OnEmitIndicies(const int a,const int b);
@@ -4578,6 +4666,17 @@ void OnHandleEditCircle(){
 
     return;
   }
+  arcShape=Handle(ArcAIS_Shape)::DownCast(selCurveShape);
+  if(arcShape){
+    Quantity_Color color;
+    arcShape->Color(color);
+    editarcDialog->SetColor(color);
+    editarcDialog->SetGeomCircle(arcShape->Circle());
+    editarcDialog->SetPrevRadius((double)arcShape->Circle()->Radius());
+    editarcDialog->SetPrevValues(arcShape->U1(),arcShape->U2());
+    editarcDialog->exec();
+    return;
+  }
   else{
     std::cout<<"Could not find a suitable cast"<<"\n";
     return;
@@ -4717,12 +4816,17 @@ void OnHandleArcDraw(){
   if(!edgeMaker.IsDone()){
     return;
   }
-  Handle(CustomAIS_Shape) arcShape=new CustomAIS_Shape(edgeMaker.Edge());
+  Handle(ArcAIS_Shape) arcshape=new ArcAIS_Shape(edgeMaker.Edge());
   if(!arcShape){
     return;
   }
-  arcShape->SetColor(arcDialog->ArcColor());
-  context->Display(arcShape,true);
+  arcshape->SetColor(arcDialog->ArcColor());
+  arcshape->SetU1((double)arcDialog->GetU1());
+  arcshape->SetU2((double)arcDialog->GetU2());
+  arcshape->SetCircle(arcDialog->Circle());
+  context->Display(arcshape,true);
+  DraftShapes.emplace(draftCount,arcshape);
+  ++draftCount;
   return;
 }
 void OnUpdateWithTransform(){
@@ -5074,6 +5178,54 @@ void AlignWithDirection(){
     return;
   }
   return;
+}
+void OnHandleArcEditDialogDone(){
+  if(!arcShape){
+    return;
+  }
+  arcShape->SetShape(editarcDialog->GetEdge());
+  arcShape->SetCircle(editarcDialog->CircleCurve());
+  arcShape->SetU1((double)editarcDialog->U1());
+  arcShape->SetU2((double)editarcDialog->U2());
+  context->Redisplay(arcShape,true);
+  return;
+}
+void OnGatherWire(bool checked){
+  if(checked){
+    context->Deactivate(); 
+    CurrentSelMode=3;
+    context->Activate(3);
+    wireselectors->UnSelectAll();   
+  }
+  else{
+    context->Deactivate();
+    context->Activate(0);
+   CurrentSelMode=0;
+   wireselectors->Nullify();
+  }
+ return;
+}
+void OnSelectWires(bool checked){
+  if(checked){
+    emit EmitGatherWire(checked);
+  }
+  else{
+  emit EmitGatherWire(checked);
+  }
+  return;
+}
+//for ending the selection of wires 
+void EndSelectWires(){
+ st1=NULL_SELECT;
+ gatherWire->setChecked(false);
+ CurrentSelMode=0;
+ context->Deactivate();
+ context->Activate(0);
+ wireselectors->Nullify();
+return;
+}
+void DeleteWires(){
+return;
 }
 };
 

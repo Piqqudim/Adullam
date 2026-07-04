@@ -32,7 +32,7 @@
 #include<MaterialEditorDialog.hpp>
 #include<FloatInputDialog.hpp>
 #include<BoolDialog.hpp>
-
+#include<IntegerDialog.hpp>
 using namespace INFO;
 using namespace std;
 using QtNodes::GraphicsView;
@@ -68,6 +68,7 @@ SP_SHAPE,
 SP_EDGE,
 SP_FACE,
 SP_WIRE,
+SP_WIRES,
 SP_CMDSHAPE,
 SP_TRANSFORM,
 SP_AXIS,
@@ -140,7 +141,7 @@ std::unique_ptr<QAction> deleteViewObject=std::make_unique<QAction>(tr("Delete V
 std::unique_ptr<FloatDialog>fdialog=std::make_unique<FloatDialog>();
 std::unique_ptr<BoolDialog> bdialog=std::make_unique<BoolDialog>();
 std::unique_ptr<MaterialEditorDialog> matDialog=std::make_unique<MaterialEditorDialog>();
-
+std::unique_ptr<IntegerDialog> integerDialog=std::make_unique<IntegerDialog>();
 std::reference_wrapper<Handle(AIS_InteractiveContext)> context;
 
 DataFlowGraphModel* graph_model=nullptr;
@@ -185,6 +186,7 @@ SinglyMaterialNode* matnode=nullptr;
 IndexNode* indexnode=nullptr;
 FloatNode* floatnode=nullptr;
 BoolNode* bnode=nullptr;
+IntegerInputNode* integernode=nullptr;
 bool CanDrawPointNode=false;
 bool IsCubeNodeSet=false;
 bool IsFloatNodeSet=false;
@@ -210,6 +212,7 @@ QRect BoundRect; //For the rubber band selection
 std::vector<int> nodeIDs;
 int IndexCounter=0;
 std::vector<size_t> IndexerIndices;
+std::vector<TopoDS_Wire> wires;
 NodeGraphWidget(QWidget* parent_widget,Handle(AIS_InteractiveContext)& context_1):GraphicsView(parent_widget),context{context_1}{
    Registry.reset(new NodeRegistry());
    //Register Model
@@ -256,6 +259,7 @@ Registry->registerModel<ConvertToAIS_ShapeNode>("Conversion");
 },tr("DataTypes"));
 Registry->registerModel<IntegerInputNode>("DataTypes");
    Registry->registerModel<StringInputNode>("DataTypes");
+   Registry->registerModel<SinglyWireVector>(tr("Primitives Collection"));
    Registry->registerModel<DirectionNode>("Direction");
    Registry->registerModel<Point3dNode>("Points");
    Registry->registerModel<AxisNode>("Axis");
@@ -327,6 +331,7 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
    Registry->registerModel<InvertDirectionNode>(tr("Direction"));
    Registry->registerModel<MakeDraftAngleNode>(tr("CAD operations"));
    Registry->registerModel<MakeEvolvedNode>(tr("CAD operations"));
+   Registry->registerModel<LoftNode>(tr("CAD operations"));
    graph_model=new DataFlowGraphModel(Registry);
    scene_1=std::make_shared<DataFlowGraphicsScene>(*graph_model,this);
    GraphicsView::setScene(scene_1.get());
@@ -366,6 +371,7 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
   connect(fdialog.get(),&FloatDialog::EmitDone,this,&NodeGraphWidget::HandleEmitDoneForFloatDialog);
   connect(nullifyWithShape.get(),&QAction::triggered,this,&NodeGraphWidget::HandleNullifyWithShape);
   connect(bdialog.get(),&BoolDialog::EmitDone,this,&NodeGraphWidget::OnHandleBool);
+  connect(integerDialog.get(),&IntegerDialog::EmitDone,this,&NodeGraphWidget::OnHandleDoneForIntegerDialog);
   return;
 }
 void OnFindSubFace(const int& parentindex,const int& childindex){
@@ -627,6 +633,7 @@ void mousePressEvent(QMouseEvent* event) override{
      indexnode=nullptr; //an object of indexnode
      floatnode=nullptr; //an object of floatnode
      bnode=nullptr; //an object of boolnode
+     integernode=nullptr;
   if(dstatus==DS_DRAG){
    setDragMode(QGraphicsView::RubberBandDrag);
      return;
@@ -704,6 +711,42 @@ void mousePressEvent(QMouseEvent* event) override{
      return;
     }
     switch(shapedraw){
+    case SP_WIRES:{
+     auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+       if(!gscene){
+        return;
+       }
+      size_t nodeId = gscene->GraphModel()->addNode(tr("Wires")); 
+     if(nodeId!= InvalidNodeId){
+       gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
+       auto node=dynamic_cast<SinglyWireVector*>(gscene->GraphModel()->Models().at(nodeId).get());
+       if(node){
+         node->SetWires(wires);
+        
+          std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
+          if(ngo){
+             ngo->setVisible(true);
+             ngo->update();
+              gscene->update();
+              updateSceneRect(gscene->sceneRect());
+              cout<<"Node Initiated Successfully"<<std::endl;
+              return;
+          }
+       }
+       else{
+        std::cout<<"Failed to get a transformation node"<<std::endl;
+         return;
+       }
+
+
+       }
+       else{
+        std::cout<<"Not Created Successfully"<<std::endl;
+       }
+
+   
+     return;
+    }
     case SP_MATNODE:{
        auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
        if(!gscene){
@@ -1134,6 +1177,10 @@ void mousePressEvent(QMouseEvent* event) override{
              }
              bnode=dynamic_cast<BoolNode*>(gmodel->Models().at(nodeObject->nodeId()).get());
              if(bnode){
+              return;
+             }
+             integernode=dynamic_cast<IntegerInputNode*>(gmodel->Models().at(nodeObject->nodeId()).get());
+             if(integernode){
               return;
              }
              }
@@ -1740,6 +1787,10 @@ void OnHandleEdit(){
     bdialog->SetValue(bnode->Value());
     bdialog->exec();
   }
+  if(integernode){
+  integerDialog->SetPrevValue(integernode->Output());
+  integerDialog->exec();
+  }
   return;
 }
 void OnHandleSentString(const QString& str){
@@ -1844,6 +1895,12 @@ void HandleDeleteViewObject(){
 void HandleEmitDoneForFloatDialog(){
   if(floatnode){
     floatnode->SetData(fdialog->GetData());
+  }
+  return;
+}
+void OnHandleDoneForIntegerDialog(){
+  if(integernode){
+   integernode->SetOutput(integerDialog->Value());
   }
   return;
 }

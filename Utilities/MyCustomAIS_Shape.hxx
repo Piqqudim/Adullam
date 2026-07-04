@@ -67,27 +67,64 @@ bool ColorIsSet=false;
 bool isEdgeSelected=false;
 bool isFaceSelected=false;
 bool isWireSelected=false;
-
 Graphic3d_MaterialAspect material;
 Quantity_Color initialColor;
 gp_Trsf initialTrsf; //compounded transformation
 TopoDS_Shape trans_shape; //transformed shape used in construction of the selected or detected shape
 TopTools_IndexedMapOfShape faceMap;
 TopTools_IndexedMapOfShape edgeMap;
+TopTools_IndexedMapOfShape wiremap;
 int highlightIndex=-1; //highlightIndex for face
 int edgeHighlightIndex=-1;
+int wireHighlightIndex=-1;
 ERROR_TYPE et;
 CustomAIS_Shape(const TopoDS_Shape& theshape):AIS_ColoredShape(theshape){
-  TopExp::MapShapes(Shape(),TopAbs_FACE,faceMap);
-  TopExp::MapShapes(Shape(),TopAbs_EDGE,edgeMap);
+  
+  DissectShape(theshape);
   SetVisualAspect(Quantity_NOC_RED2);
   trans_shape=theshape;
 }
 CustomAIS_Shape(const int& index,const TopoDS_Shape& shape):AIS_ColoredShape(shape){
-  TopExp::MapShapes(Shape(),TopAbs_FACE,faceMap);
-  TopExp::MapShapes(Shape(),TopAbs_EDGE,edgeMap);
+ 
+   DissectShape(shape);
   SetVisualAspect(Quantity_NOC_RED2);
   UniqueId=index;
+  return;
+}
+void DissectShape(const TopoDS_Shape& shape){
+  TopAbs_ShapeEnum shapetype=shape.ShapeType();
+  switch(shapetype){
+    case TopAbs_VERTEX:{
+      break;
+    }
+    case TopAbs_EDGE:{
+      break;
+    }
+    case TopAbs_WIRE:{
+     TopExp::MapShapes(Shape(),TopAbs_EDGE,edgeMap);
+      break;
+    }
+    case TopAbs_FACE:{
+       TopExp::MapShapes(Shape(),TopAbs_EDGE,edgeMap);
+       TopExp::MapShapes(Shape(),TopAbs_WIRE,wiremap);
+       break;     
+    }
+    case TopAbs_SHELL:{
+       TopExp::MapShapes(Shape(),TopAbs_FACE,faceMap);
+       TopExp::MapShapes(Shape(),TopAbs_EDGE,edgeMap);
+       TopExp::MapShapes(Shape(),TopAbs_WIRE,wiremap);
+       break;
+    }
+    case TopAbs_SOLID:{
+      TopExp::MapShapes(Shape(),TopAbs_FACE,faceMap);
+       TopExp::MapShapes(Shape(),TopAbs_EDGE,edgeMap);
+       TopExp::MapShapes(Shape(),TopAbs_WIRE,wiremap);
+      break;
+    }
+  }
+  
+  
+  
   return;
 }
 int ID() const{
@@ -150,6 +187,26 @@ void HighlightEdge(const TopoDS_Edge& edge,const Quantity_Color& color){
   
   return;
 }
+void HighlightWire(const TopoDS_Wire& wire,const Quantity_Color& color){
+  int index=FindWire(wire); //find wire at a particular index
+  if(index==-1){
+    LoadMessage(QString(""),QString("Failed to find the index that corresponds with wire"));
+    return;
+  }
+  wireHighlightIndex=index;
+  ShadeWire(index,color);
+  return;
+}
+void UnhighlightWire(){
+  if(wireHighlightIndex==-1){
+     LoadMessage(QString(""),QString("Highlight Index is minus"));
+    return;
+  }
+   UnShadeWire(wireHighlightIndex);
+  wireHighlightIndex=-1;
+  return;
+}
+
 void UnhighlightEdge(){
    if(edgeHighlightIndex==-1){
     LoadMessage(QString(""),QString("Highlight Index is minus"));
@@ -185,7 +242,7 @@ void setCustomColor(const TopoDS_Shape& shape,const Quantity_Color& color){
 }
 void UnShadeEdge(const unsigned int& index){
     if(index-1==edgeMap.Extent()){
-       UnsetCustomAspects(edgeMap(faceMap.Extent()));
+       UnsetCustomAspects(edgeMap(edgeMap.Extent()));
        return;
      }
   if(index<1){
@@ -197,6 +254,7 @@ void UnShadeEdge(const unsigned int& index){
   UnsetCustomAspects(edgeMap(index));
   return;
 }
+
 void UnShadeFace(const unsigned int& index){
   if(index-1==faceMap.Extent()){
        UnsetCustomAspects(faceMap(faceMap.Extent()));
@@ -211,6 +269,20 @@ void UnShadeFace(const unsigned int& index){
   UnsetCustomAspects(faceMap(index));
   return;
   
+}
+void UnShadeWire(const unsigned int& index){
+  if(index-1==wiremap.Extent()){
+       UnsetCustomAspects(wiremap(wiremap.Extent()));
+       return;
+     }
+  if(index<1){
+       return;
+     }
+     if(index>wiremap.Extent()){
+        return;
+     }
+  UnsetCustomAspects(wiremap(index));
+  return;
 }
 void ShadeFace(const unsigned int& index,const Quantity_Color& color){
      if(index-1==faceMap.Extent()){
@@ -255,8 +327,25 @@ int FindEdge(const TopoDS_Edge& edge){
    if(isFound==false){
     return -1;
    }
+   return -1;
 }
 
+int FindWire(const TopoDS_Wire& wire){
+  TopExp_Explorer exp;
+   int i=1;
+   bool isFound=false;
+   for(exp.Init(Shape(),TopAbs_WIRE);exp.More();exp.Next()){
+     if(wire.IsSame(TopoDS::Wire(exp.Current()))){
+        isFound=true;
+        return i;
+     }
+     ++i;
+   }
+   if(isFound==false){
+    return -1;
+   }
+   return -1;
+}
 
 
 
@@ -270,11 +359,24 @@ void ShadeEdge(const unsigned int& index,const Quantity_Color& color){
      SetCustomColor(edgeMap(index),color);
      return;
 }
+void ShadeWire(const unsigned int& index,const Quantity_Color& color){
+     if(index<1){
+       return;
+     }
+     if(index>wiremap.Extent()){
+        return;
+     }
+     SetCustomColor(wiremap(index),color);
+     return;
+}
 int FaceCount() const{
   return faceMap.Extent();
 }
 int EdgeCount() const{
    return edgeMap.Extent();
+}
+int WireCount() const{
+  return wiremap.Extent();
 }
 TopoDS_Face GetFace(const int& index) const{
       return TopoDS::Face(faceMap(index));
