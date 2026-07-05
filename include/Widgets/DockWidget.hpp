@@ -49,6 +49,10 @@ void RemoveWidget(){
     }
     return;
 }
+
+TabWidget* GetTabWidget() const{
+    return tabwidget.get();
+}
 void AddTab(const QString& title,QWidget* widget){
    if(!widget){
     return;

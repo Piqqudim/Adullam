@@ -33,6 +33,7 @@
 #include<QtGui/QClipboard>
 #include<iostream>
 #include<EdgeInfoWidget.hpp>
+#include<LoggerWidget.hpp>
 #include<LinePresentationWidget.hpp>
 using namespace Shape_Utility;
 using namespace SURFACE;
@@ -72,7 +73,7 @@ class Window_Frame:public QMainWindow{
     std::unique_ptr<TabWidget> tabwidget_1;  //This tabwidgets will be used to display Graphics View,it will contained by the splitter
     std::unique_ptr<TreeViewWidget> fileSystemWidget;
     std::unique_ptr<ObjectPresentationWidget> objprswidget;
-    
+    std::unique_ptr<LoggerWidget> logwidget=std::make_unique<LoggerWidget>();
     std::unique_ptr<ObjectInfoWidget> objinfowidget;  //this will show the properties of the object to display
     Handle(CustomAIS_Shape) shape=new CustomAIS_Shape(DrawCube(80));
     std::unique_ptr<SurfaceInfoWidget> surface_widget=std::make_unique<SurfaceInfoWidget>();
@@ -1268,29 +1269,6 @@ void OnHandleDestroyPrevObject(){
   }
   return;
 }
-void OnShowObjectInfo(){
-  
-  if(!centralwidget_1){
-     return;
-  }
-  if(centralwidget_1->ChosenShape){
-  
-  if(surface_widget){
-    disconnect(surface_widget.get(),&SurfaceInfoWidget::EmitIndex,this,&Window_Frame::OnGetFaceIndex);
-    surface_widget=std::make_unique<SurfaceInfoWidget>();
-    connect(surface_widget.get(),&SurfaceInfoWidget::EmitIndex,this,&Window_Frame::OnGetFaceIndex);
-  }
-    if(dockwidget_1->GetScrolledWidget()){
-      dockwidget_1->RemoveWidget();
-    }
-    surface_widget->SetCurrentShape(centralwidget_1->ChosenShape);
-
-    surface_widget->SetSurfaceInfos(centralwidget_1->ChosenShape);
-    dockwidget_1->SetWidget(surface_widget.get());
-  }
-     
-  return;
-}
 void OnDisplayFaceInfo(int id){
   if(!centralwidget_1){
     return;
@@ -1300,7 +1278,7 @@ void OnDisplayFaceInfo(int id){
   }
   SURFACE::SurfaceInfo info;
   SURFACE::GetSurfaceInfo(centralwidget_1->ChosenShape->GetFace(id),info);
-  surface_widget->SetSurfaceInfo(info,QString("Surface")+QString::number(id));
+  surface_widget->SetSurfaceInfo(info   );
   if(dockwidget_2->GetScrolledWidget()){
     dockwidget_2->RemoveWidget();
   }
@@ -1882,9 +1860,7 @@ void OnHandleEdgeInfo(const EdgeInfo& edgeinfo){
   dockwidget_1->SetWidget(edgeInfoWidget.get());
   return;
 }
-void OnHandleSurfaceInfo(const SurfaceInfo& surfaceinfo){
-  return;
-}
+
 void OnHandleMaterialNode(bool value){
   if(value){
    nodewidget->nodeShapeMaterial=objprswidget->material();
@@ -2094,6 +2070,30 @@ void OnHandleGatherWires(bool checked){
  else{
    nodewidget->shapedraw=SP_NULL;
  }
+  return;
+}
+void OnDisplayLogWidget(bool checked){
+  if(checked){
+  if(!logwidget){
+    return;
+  }
+  dockwidget_1->AddTab(tr("Console Log"),logwidget.get());
+  }
+  else{
+     int i=dockwidget_1->GetTabWidget()->indexOf(logwidget.get());
+     if(i!=-1){
+      dockwidget_1->GetTabWidget()->removeTab(i);
+     }
+  }
+  return;
+}
+void OnHandleSurfaceInfo(const SURFACE::SurfaceInfo& info){
+  if(!surface_widget){
+     return;
+  }
+  surface_widget->SetSurfaceInfo(info);
+  dockwidget_1->AddTab(tr("Surface"),surface_widget.get());
+
   return;
 }
 };

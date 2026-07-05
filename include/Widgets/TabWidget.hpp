@@ -14,6 +14,7 @@ TabWidget(QWidget* parent_widget):QTabWidget(parent_widget){
     setUsesScrollButtons(true);
     setTabPosition(QTabWidget::West);
     setTabShape(QTabWidget::Rounded);
+    setUsesScrollButtons(true);
     connect(this,&QTabWidget::tabCloseRequested,this,&TabWidget::OnRemoveTab);
 }
 signals:

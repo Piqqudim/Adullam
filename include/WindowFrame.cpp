@@ -153,7 +153,7 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
     connect(nodewidget.get(),&NodeGraphWidget::EmitFaceId,this,&Window_Frame::OnHighlightFace);
    connect(nodewidget.get(),&NodeGraphWidget::onDestroyPreviousObject,this,&Window_Frame::OnHandleDestroyPrevObject);
    connect(nodewidget.get(),&NodeGraphWidget::EmitEdge,this,&Window_Frame::OnHighlightEdge);
-   connect(centralwidget_1->ShowObjectInfo.get(),&QAction::triggered,this,&Window_Frame::OnShowObjectInfo);
+   
    connect(centralwidget_1.get(),&DrawingCentralWidget:: OnEmitBoolValue,this,&Window_Frame::OnHandleFacePoint);
   
    connect(centralwidget_1.get(),&DrawingCentralWidget::OnEmitFace,this,&Window_Frame::OnHandleFaceEmitted);
@@ -210,6 +210,9 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
    connect(centralwidget_1->findByIndexer.get(),&QAction::triggered,this,&Window_Frame::OnFindIndexer);
    connect(nodewidget.get(),&NodeGraphWidget::EmitShapeIndexForNullify,this,&Window_Frame::OnHandleEmittedIndexToNullifyShape);
    connect(centralwidget_1.get(),&DrawingCentralWidget::EmitGatherWire,this,&Window_Frame::OnHandleGatherWires);
-}
+   connect(editorMenu->enableConsoleLog.get(),&QAction::toggled,this,&Window_Frame::OnDisplayLogWidget);
+   connect(centralwidget_1.get(),&DrawingCentralWidget::OnEmitSurfaceInfo,this,&Window_Frame::OnHandleSurfaceInfo);
+
+}  
 
 

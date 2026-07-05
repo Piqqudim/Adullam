@@ -584,7 +584,6 @@ public:
     SelectedMenu->addAction(ConstructPointNodeAction.get());
     SelectedMenu->addAction(ConstructTransformNodeAction.get());
     SelectedMenu->addAction(ConstructShapeNodeAction.get());
-    SelectedMenu->addAction(ShowObjectInfo.get());
     SelectedMenu->addAction(FindAction.get());
     SelectedMenu->addAction(copyScaleAction.get());
     SelectedMenu->addAction(copyRotationAction.get());
@@ -787,6 +786,7 @@ view->MustBeResized();
  connect(filletMenu->endFilletOps.get(),&QAction::triggered,this,&DrawingCentralWidget::EndFillet); 
  connect(copyMaterial.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleCopyMaterial);
  connect(edgeMenu->trimAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleTrim);
+ connect(edgeMenu->convertwireAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleConvertEdgeToWire);
  connect(trimMenu->TrimAction(),&QAction::triggered,this,&DrawingCentralWidget::OnTrimCurve);
  connect(trimMenu->EndOps(),&QAction::triggered,this,&DrawingCentralWidget::OnEndTrim);
  connect(faceDialog.get(),&FaceLineDialog::Done,this,&DrawingCentralWidget::OnHandleFaceDone);
@@ -848,7 +848,7 @@ view->MustBeResized();
  connect(gatherWire.get(),&QAction::toggled,this,&DrawingCentralWidget::OnGatherWire);
  connect(endGroupWire.get(),&QAction::triggered,this,&DrawingCentralWidget::EndSelectWires);
  connect(convertToWires.get(),&QAction::toggled,this,&DrawingCentralWidget::OnSelectWires);
- 
+ connect(faceMenu->showInfoAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnGetFaceInfo);
  return;
 
 }
@@ -2124,14 +2124,16 @@ void mousePressEvent(QMouseEvent* event) override{
           cout<<"Failed To Cast"<<"\n";
         } 
       selShape=Handle(CustomAIS_Shape)::DownCast(obShape);
-      if(!selShape){
-        edgeselector->SetSelectedShape(selShape);
+      if(selShape){
+         edgeselector->SetSelectedShape(selShape);
         std::cout<<"Failed to cast to an object of CustomAIS_Shape"<<"\n";
       }
+      else{
       selCurveShape=Handle(CurveAIS_Shape)::DownCast(obShape);
       if(selCurveShape){
         edgeselector->SetSelectedShape(selCurveShape);
         std::cout<<"Converted To an object of CurveAIS_Shape"<<"\n";
+      }
       }
        Handle(StdSelect_BRepOwner) selectedEntity=Handle(StdSelect_BRepOwner)::DownCast(owner);
        if(!selectedEntity){
@@ -2487,10 +2489,8 @@ if(cm==CE_SHAPE){
           IsShapePrsAdded=false;
         }
         
-         SelectedMenu->addAction(ShapePrsAction);
-         SelectedMenu->addAction(ShowObjectInfo.get());
-          SelectedMenu->addAction(updateWithTransform.get());
-         IsShapePrsAdded=true;
+         SelectedMenu->addAction(LinePrsAction);
+        IsLinePrsAdded=true;
          SelectedMenu->exec(event->globalPosition().toPoint());
         return;
       }
@@ -2876,7 +2876,7 @@ void SetDrawCircleAction(bool toggled){
     DrawCircle=true;
     return;
 }
-void OnDeleteObject(bool toggled){
+void OnDeleteObject(bool toggled=false){
   if(!ChosenShape.IsNull()){
     UndoStack->push(new DeleteCommand(ChosenShape,context,0,3));
     if(!Shapes.empty()){
@@ -3826,8 +3826,8 @@ void OnConvertPolygonToWire(){
     LoadMessage(tr(""),tr("Object has been converted to wire"));
     return;
   }
-  if(collectedLines.empty()){
-    LoadMessage(tr(""),tr("There is no source edge from which wire can be constructed"));
+  if(collectiveIndex.empty()){
+    LoadMessage(tr(""),tr("There are no source edge(s)"));
     return;
   }
 
@@ -5226,6 +5226,30 @@ return;
 }
 void DeleteWires(){
 return;
+}
+void OnHandleConvertEdgeToWire(){
+  if(selShape){
+     ConvertEdgeToWire();
+     if(!selWire.IsNull()){
+       selShape->SetShape(selWire);
+       context->Redisplay(selShape,true);
+     }
+  }
+  else{
+    if(selCurveShape){
+      if(!selEdge.IsNull()){
+          ConvertEdgeToWire();
+          if(!selWire.IsNull()){
+            Handle(CustomAIS_Shape) hshape=new CustomAIS_Shape(selWire);
+            context->SetLocation(hshape,context->Location(selCurveShape));
+            context->Display(hshape,true);
+            curveShape=selCurveShape;
+            OnDeleteObject();
+          }
+      }
+    }
+  }
+  return;
 }
 };
 

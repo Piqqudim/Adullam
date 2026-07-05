@@ -6,7 +6,7 @@ class EdgeMenu:public QMenu{
  public:
  std::unique_ptr<QAction> showInfoAction;
 std::unique_ptr<QAction> convertAction;
-std::unique_ptr<QAction> convertToFaceAction ;
+std::unique_ptr<QAction> convertToFaceAction;
 std::unique_ptr<QAction> convertToWireAction;
 std::unique_ptr<QAction> trimAction=std::make_unique<QAction>(tr("Trim "));
 std::unique_ptr<QAction> filletAction=std::make_unique<QAction>(tr("Apply Fillet"));
@@ -18,6 +18,7 @@ std::unique_ptr<QAction> removeLineEdit=std::make_unique<QAction>(tr("Remove Cur
 std::unique_ptr<QAction> nullify=std::make_unique<QAction>(tr("Nullify Curve Representation"));
 std::unique_ptr<QAction> update=std::make_unique<QAction>(tr("Update With Transform"));
 std::unique_ptr<QAction> alignWithDir=std::make_unique<QAction>(tr("Align With Direction"));
+std::unique_ptr<QAction> convertwireAction=std::make_unique<QAction>(tr("Convert To Wire"));
 EdgeMenu():QMenu(){
     showInfoAction=std::make_unique<QAction>(tr("Show Info"),nullptr);
     convertAction=std::make_unique<QAction>(tr("Convert To Edge Node"),nullptr);
@@ -43,7 +44,9 @@ EdgeMenu():QMenu(){
     addAction(editMenuAction.get());
     addAction(convertToFaceAction.get());
     addAction(convertToWireAction.get());
+    addAction(convertwireAction.get());
     addAction(filletAction.get());
+    
     return;
 }
 
