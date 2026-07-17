@@ -8,6 +8,7 @@ class EdgeMenu:public QMenu{
 std::unique_ptr<QAction> convertAction;
 std::unique_ptr<QAction> convertToFaceAction;
 std::unique_ptr<QAction> convertToWireAction;
+std::unique_ptr<QAction> convertToPointNode=std::make_unique<QAction>(tr("Convert To Point Node"));
 std::unique_ptr<QAction> trimAction=std::make_unique<QAction>(tr("Trim "));
 std::unique_ptr<QAction> filletAction=std::make_unique<QAction>(tr("Apply Fillet"));
 std::unique_ptr<QAction> editMenuAction=std::make_unique<QAction>(tr("Edit"));
@@ -36,11 +37,12 @@ EdgeMenu():QMenu(){
     convertAction->setCheckable(true);
     convertToFaceAction->setCheckable(true);
     trimAction->setCheckable(true);
-
+    convertToPointNode->setCheckable(true);
     
     addAction(showInfoAction.get());
     addAction(convertAction.get());
     addAction(trimAction.get());
+    addAction(convertToPointNode.get());
     addAction(editMenuAction.get());
     addAction(convertToFaceAction.get());
     addAction(convertToWireAction.get());

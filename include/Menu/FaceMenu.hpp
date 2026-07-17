@@ -11,7 +11,7 @@ std::unique_ptr<QAction> applyChamfer;
 std::unique_ptr<QAction> convertAction;
 std::unique_ptr<QAction> searchAction;
 std::unique_ptr<QAction> DrawAction;
-
+std::unique_ptr<QAction>convertToPointNode;
 FaceMenu():QMenu(){
     showInfoAction=std::make_unique<QAction>(tr("Show Info"),nullptr);
     convertAction=std::make_unique<QAction>(tr("Convert To Face Node"),nullptr);
@@ -24,6 +24,8 @@ FaceMenu():QMenu(){
     applyChamfer=std::make_unique<QAction>(tr("Apply Chamfer"));
     applyChamfer->setCheckable(true);
     computeFacePlane=std::make_unique<QAction>(tr("Compute Face Plane"));
+    convertToPointNode=std::make_unique<QAction>(tr("Convert To Point Node"));
+    convertToPointNode->setCheckable(true);
     addAction(searchAction.get());
     addAction(computeFacePlane.get());
     addAction(assumeFaceNormal.get());
@@ -32,6 +34,7 @@ FaceMenu():QMenu(){
     addAction(applyChamfer.get());
     addAction(convertAction.get());
     addAction(DrawAction.get());
+    addAction(convertToPointNode.get());
 }
 };
 

@@ -116,6 +116,11 @@
 #include<CollectiveAIS_Shape.hpp>
 #include<EditArcDialog.hpp>
 #include<ArcShape.hpp>
+#include<TransientLineDialog.hpp>
+#include<PrimLineMenu.hpp>
+#include<TransientCircleDialog.hpp>
+#include<PrimCircleMenu.hpp>
+
 //This file will enter 10,000 LOC
 //We have to create a dialog for viewport setting,Drawing widget is also a viewport
 //On Object Creation,deletion,editing,Transform
@@ -143,6 +148,11 @@ enum MANIP_CURVE{
  MC_LINE,
  MC_CIRCLE
 };
+enum TWOPOINT{
+  TP_FIRST,
+  TP_SECOND,
+  TP_NULL
+};
 enum DRAWCURVE{
 DC_NULL,
 DC_MOVE,
@@ -157,7 +167,11 @@ DC_TRIM,
 DC_POLYGON,
 DC_FILLET,
 DC_RADIUS,
-DC_WIREFILLET
+DC_WIREFILLET,
+DC_PRIMLINE,
+DC_PRIMARC,
+DC_PRIMCIRCLE,
+DC_TWOPNT
 };
 enum GP_STATE{
  GPS_GATHER,
@@ -245,13 +259,37 @@ std::unique_ptr<QAction> GatherPointAction; //
 std::unique_ptr<QAction> GatherCurveAction;
 std::unique_ptr<QAction> GatherBSplineAction;
 std::unique_ptr<QAction> FindAction;
+std::unique_ptr<QAction> transientPrimitiveAction=std::make_unique<QAction>(tr("Transient Primitives"));
+std::unique_ptr<QMenu> transPrimMenu=std::make_unique<QMenu>();
+std::unique_ptr<QAction> primLine=std::make_unique<QAction>(tr("Primitive Line"));
+std::unique_ptr<QAction> primCircle=std::make_unique<QAction>(tr("Primitive Circle"));
+std::unique_ptr<QAction> primArc=std::make_unique<QAction>(tr("Primitive Arc"));
+std::unique_ptr<PrimLineMenu> primLineMenu=std::make_unique<PrimLineMenu>();
+std::unique_ptr<PrimCircleMenu> primCircleMenu=std::make_unique<PrimCircleMenu>();
+
+//This convert two set of points to a line 
+std::unique_ptr<QAction> fLinePoint=make_unique<QAction>(tr("Select First Point"));
+std::unique_ptr<QAction> sLinePoint=make_unique<QAction>(tr("Select Second Point"));
+std::unique_ptr<QAction> convertToPrim=make_unique<QAction>(tr("Convert To Primitive Line"));
+std::unique_ptr<QAction> endAction=std::make_unique<QAction>(tr("End"));
+std::unique_ptr<QAction> build=make_unique<QAction>(tr("Build"));
+std::unique_ptr<QAction> convertToAxis=make_unique<QAction>(tr("Convert To Axis Node"));
+std::unique_ptr<QAction> convertToLength=make_unique<QAction>(tr("Convert To Length Node"));
+std::unique_ptr<QAction> viewLength=make_unique<QAction>(tr("View Length"));
+std::unique_ptr<QAction> viewAxis=make_unique<QAction>(tr("View Axis"));
+std::unique_ptr<QAction> LineAction;
+std::unique_ptr<QMenu> LineMenu;
+//end
+TWOPOINT tpoint=TP_NULL;
+std::array<gp_Pnt,2> twoPointArray;
+
 std::unique_ptr<QAction> shouldSetAction=std::make_unique<QAction>(tr("Should Set"),nullptr);
 std::unique_ptr<QAction> CheckShapeIdAction=std::make_unique<QAction>(tr("Shape Id"),nullptr);
 std::unique_ptr<QAction> deleteAxisObject=std::make_unique<QAction>(tr("Delete"));
 std::unique_ptr<QAction> faceNormalAction=std::make_unique<QAction>(tr("Assume Face Centre Normal"));
 std::unique_ptr<QAction> convertFacePointAction=std::make_unique<QAction>(tr("Convert To Point Node"));
 std::unique_ptr<QAction> drawAction=std::make_unique<QAction>(tr("Draw Line"));
-std::unique_ptr<QAction> gatherWire=std::make_unique<QAction>(tr("Gather Profiles"));
+std::unique_ptr<QAction> gatherWire=std::make_unique<QAction>(tr("Select Wires"));
 std::unique_ptr<WireFilletMenu> wireFilletMenu=std::make_unique<WireFilletMenu>();
 std::unique_ptr<DrawCircleMenu> drawCircle=std::make_unique<DrawCircleMenu>();
 std::unique_ptr<DrawPolygonDialog> drawPolygonDialog=std::make_unique<DrawPolygonDialog>();
@@ -297,10 +335,17 @@ std::unique_ptr<QAction> arcDraw=std::make_unique<QAction>(tr("Execute Arc"));
 std::unique_ptr<QMenu> editCircleMenu=std::make_unique<QMenu>();
 std::unique_ptr<QAction> editCircleAction=std::make_unique<QAction>(tr("Edit Circle Radius"));//this shows the previous value
 std::unique_ptr<QAction> cancelEditCircle=std::make_unique<QAction>(tr("Destroy"));
+
+std::unique_ptr<QMenu> groupCollectionMenu=std::make_unique<QMenu>();
+std::unique_ptr<QAction> groupCollectionAction=std::make_unique<QAction>(tr("Group Selection"));
+std::unique_ptr<QAction> selectEdges=std::make_unique<QAction>(tr("Select Edges"));
+std::unique_ptr<QAction> selectFaces=std::make_unique<QAction>(tr("Select Faces"));
+std::unique_ptr<QAction> selectShapes=std::make_unique<QAction>(tr("Select Shapes"));
 std::unique_ptr<QMenu> groupWireMenu=std::make_unique<QMenu>();
 std::unique_ptr<QAction> deleteGroupWire=std::make_unique<QAction>(tr("Delete"));
 std::unique_ptr<QAction> endGroupWire=std::make_unique<QAction>(tr("End Wire Group Selection"));
 std::unique_ptr<QAction> convertToWires=std::make_unique<QAction>(tr("Convert To Wire Nodes"));
+
 std::unique_ptr<QAction> updateWithTransform=std::make_unique<QAction>(tr("Update"));
 std::unique_ptr<DrawBezierDialog> drawBezierDialog=std::make_unique<DrawBezierDialog>();
 std::unique_ptr<TransientPolygon> transPolygon;
@@ -334,9 +379,16 @@ std::unique_ptr<WireSelector> wireselector=std::make_unique<WireSelector>();
 std::unique_ptr<ShapeSelector> shapeselector=std::make_unique<ShapeSelector>();
 std::unique_ptr<EdgeSelector> edgeselector=std::make_unique<EdgeSelector>();
 std::unique_ptr<FaceSelector> faceselector=std::make_unique<FaceSelector>();
+
 std::unique_ptr<CollectiveWireSelector> wireselectors=std::make_unique<CollectiveWireSelector>();
+std::unique_ptr<CollectiveEdgeSelector> edgeselectors=std::make_unique<CollectiveEdgeSelector>();
+std::unique_ptr<CollectiveFaceSelector> faceselectors=std::make_unique<CollectiveFaceSelector>();
+std::unique_ptr<CollectiveShapeSelector> shapeselectors=std::make_unique<CollectiveShapeSelector>();
 std::unique_ptr<EditArcDialog> editarcDialog=std::make_unique<EditArcDialog>();
+std::unique_ptr<TransientLineDialog> transLineDialog=std::make_unique<TransientLineDialog>();
 std::unique_ptr<QAction> selectWires=std::make_unique<QAction>(tr("Select Wires"));
+std::unique_ptr<TransientCircleDialog> transCircleDialog=std::make_unique<TransientCircleDialog>();
+
 MANIP_CURVE manipcurve=MC_NULL;
 bool IsShapePrsAdded=false;   //this is to keep track of whether shape presentation menu item has been added
  TopoDS_Face selFace;
@@ -613,6 +665,7 @@ public:
     createMaterialNode->setCheckable(true);
     arcMenuAction->setMenu(arcMenu.get());
     arcMenu->addAction(arcStart.get());
+
     arcMenu->addAction(arcDraw.get());
     editCircleMenu->addAction(editCircleAction.get());
     editCircleMenu->addAction(cancelEditCircle.get());
@@ -626,8 +679,40 @@ public:
     drawBezierMenu->addAction(startBezier.get());
     drawBezierMenu->addAction(continueBezier.get());
     drawBezierMenu->addAction(endBezier.get());
-    DockMenus->addAction(showSettingAction);
 
+   transientPrimitiveAction->setMenu(transPrimMenu.get());
+   transPrimMenu->addAction(primLine.get());
+   transPrimMenu->addAction(primCircle.get());
+   transPrimMenu->addAction(primArc.get());
+   primLine->setCheckable(true);
+   primCircle->setCheckable(true);
+   primArc->setCheckable(true);
+  
+  LineAction=std::make_unique<QAction>(tr("Two Point Line"));
+  LineAction->setCheckable(true);
+  LineMenu=std::make_unique<QMenu>();
+  fLinePoint->setCheckable(true);
+  LineMenu->addAction(fLinePoint.get());
+  sLinePoint->setCheckable(true);
+  LineMenu->addAction(sLinePoint.get());
+  convertToPrim->setCheckable(true);
+  LineMenu->addAction(convertToPrim.get());
+  LineMenu->addAction(endAction.get());
+  LineMenu->addAction(build.get());
+  convertToAxis->setCheckable(true);
+  convertToLength->setCheckable(true);
+  LineMenu->addAction(viewLength.get());
+  LineMenu->addAction(viewAxis.get());
+  LineMenu->addAction(convertToAxis.get());
+  LineMenu->addAction(convertToLength.get());
+
+
+
+
+
+
+    DockMenus->addAction(showSettingAction);
+    DockMenus->addAction(transientPrimitiveAction.get());
     DockMenus->addAction(createMaterialNode.get());
     DockMenus->addAction(UndoAction);
     DockMenus->addAction(RedoAction);
@@ -644,12 +729,23 @@ public:
     circleByRadiusMenu->addAction(endDrawCircle.get());
     drawBezierByDialog->setCheckable(true);
     DockMenus->addAction(drawCircleAction.get());
+    DockMenus->addAction(LineAction.get());
     DockMenus->addAction(polygonAction.get());
     DockMenus->addAction(drawBezierByDialog.get());
     DockMenus->addAction(drawBSplineByDialogAction.get());
     DockMenus->addAction(GatherPointAction.get());
+    
     gatherWire->setCheckable(true);
-    DockMenus->addAction(gatherWire.get());
+    selectEdges->setCheckable(true);
+    selectFaces->setCheckable(true);
+    selectShapes->setCheckable(true);
+    groupCollectionMenu->addAction(gatherWire.get());
+    groupCollectionMenu->addAction(selectEdges.get());
+    groupCollectionMenu->addAction(selectFaces.get());
+    groupCollectionMenu->addAction(selectShapes.get());
+    groupCollectionAction->setMenu(groupCollectionMenu.get());
+    
+    DockMenus->addAction(groupCollectionAction.get());
     DockMenus->addAction(GatherCurveAction.get());
     DockMenus->addAction(loadImage.get());
     DockMenus->addAction(GatherBSplineAction.get());
@@ -667,9 +763,11 @@ public:
  circleDialog->SetContext(context);
  arcDialog->SetContext(context);
  circleEditDialog->SetContext(context);
+ transCircleDialog->SetContext(context);
  bsplineDialog->SetContext(context);
  faceselector->SetContext(context);
  wireselectors->SetContext(context);
+ transLineDialog->SetContext(context);
  transPolygon=std::make_unique<TransientPolygon>(std::ref(context));
  
  transCurve=make_unique<TransientBezierCurve>(std::ref(context));
@@ -706,12 +804,15 @@ view->MustBeResized();
   OnChangeSubShapeDetectedColor( Quantity_NOC_WHEAT);
    drawBezierDialog->SetContext(context);
    edgeselector->SetContext(context);
- context->Display(sphereShape,CurrentShadeMode,0,true);
+   edgeselectors->SetContext(context);
+   faceselectors->SetContext(context);
+   shapeselectors->SetContext(context);
+    context->Display(sphereShape,CurrentShadeMode,0,true);
  context->Display(new CustomAIS_Shape(ConeShape),CurrentShadeMode,0,true);
  context->Display(new CustomAIS_Shape(CylShape),CurrentShadeMode,0,true);
   
  context->Display(viewcube,true);
-
+ 
  
  
 
@@ -849,6 +950,38 @@ view->MustBeResized();
  connect(endGroupWire.get(),&QAction::triggered,this,&DrawingCentralWidget::EndSelectWires);
  connect(convertToWires.get(),&QAction::toggled,this,&DrawingCentralWidget::OnSelectWires);
  connect(faceMenu->showInfoAction.get(),&QAction::triggered,this,&DrawingCentralWidget::OnGetFaceInfo);
+ connect(faceMenu->convertToPointNode.get(),QAction::toggled,this,&DrawingCentralWidget::OnSendPointValues);
+ connect(edgeMenu->convertToPointNode.get(),&QAction::toggled,this,&DrawingCentralWidget::OnSendPointValues);
+ connect(wireMenu->convertToPointNode.get(),&QAction::toggled,this,&DrawingCentralWidget::OnSendPointValues);
+ connect(selectEdges.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleGatheredEdges);
+ connect(selectFaces.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleGatheredFace);
+ connect(selectShapes.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleGatheredShape);
+ connect(primLineMenu->Start(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleStartForTransLineDialog);
+ connect(primLineMenu->Continue(),&QAction::triggered,this,&DrawingCentralWidget::onHandleContinueForTransLineDialog);
+ connect(primLineMenu->CopyAxis(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleCopyAxis);
+ connect(primLineMenu->CopyLength(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleCopyLength);
+ connect(primLineMenu->End(),&QAction::triggered,this,&DrawingCentralWidget::OnEndPrimLine);
+ connect(primLineMenu->NullifyShape(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleNullifyShape);
+ connect(primLineMenu->Convert(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleConvertPrimLine);
+ connect(primLine.get(),&QAction::toggled,this,&DrawingCentralWidget::OnStartPrimLine);
+ connect(primCircle.get(),&QAction::toggled,this,&DrawingCentralWidget::OnStartPrimCircle);
+ connect(primCircleMenu->Start(),&QAction::triggered,this,&DrawingCentralWidget::OnHandlePrimCircle);
+ connect(primCircleMenu->Continue(),&QAction::triggered,this,&DrawingCentralWidget::OnContinuePrimCircle);
+ connect(primCircleMenu->End(),&QAction::triggered,this,&DrawingCentralWidget::OnEndPrimCircle);
+ connect(primCircleMenu->Nullify(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleNullifyCircleShape);
+ connect(primCircleMenu->CopyAxis(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleCopyCircleAxis);
+ connect(primCircleMenu->CopyRadius(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleCopyRadius);
+ connect(LineAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleTwoPointLine);
+ connect(fLinePoint.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleFirstTwoPoint);
+ connect(sLinePoint.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleSecondTwoPoint);
+ connect(convertToPrim.get(),&QAction::toggled,this,&DrawingCentralWidget::OnConvertTwoPointToPrimLine);
+ connect(endAction.get(),&QAction::triggered,this,&DrawingCentralWidget::EndTwoPointLine);
+ connect(build.get(),&QAction::triggered,this,&DrawingCentralWidget::OnBuildAction);
+ connect(convertToAxis.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleTwoPointAxis);
+ connect(viewLength.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleViewLength);
+ connect(viewAxis.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleViewAxis);
+ 
+ 
  return;
 
 }
@@ -1061,6 +1194,21 @@ void HighlightEdge(const TopoDS_Shape& edge){
  
   
   
+  return;
+}
+void DisplayObjectFromSuccessfullRead(const TopoDS_Shape& shape){
+  Handle(CustomAIS_Shape) displayedshape=new CustomAIS_Shape(shape);
+  context->Display(displayedshape,true);
+  
+  return;
+}
+void DisplayObjectsFromSuccessfullRead(const std::vector<TopoDS_Shape>& shapes_1){
+  if(shapes_1.empty()){
+     return;
+  }
+  for(int i=0;i<shapes_1.size();i++){
+    DisplayObjectFromSuccessfullRead(shapes_1.at(i));
+  }
   return;
 }
 
@@ -1394,9 +1542,16 @@ void DisplayObject(const Handle(CustomAIS_Shape)& object){
     return;
   }
   if(Shapes.find(object->ID())!=Shapes.end()){
+    if(object->Shape().ShapeType()<=TopAbs_FACE){
     Shapes.at(object->ID())->SetShape(object->Shape()); 
     Shapes.at(object->ID())->SetMaterialAspect(object->Mat());
     context->Redisplay(Shapes.at(object->ID()),true);
+  }
+  else{
+     Shapes.at(object->ID())->SetShape(object->Shape()); 
+    Shapes.at(object->ID())->SetColor(object->Mat().DiffuseColor());
+    context->Redisplay(Shapes.at(object->ID()),true);
+  }
   }
   else{
     if(object->ID()==-1){
@@ -1407,9 +1562,17 @@ void DisplayObject(const Handle(CustomAIS_Shape)& object){
       LoadMessage(tr(""),tr("Sent Shape Is Empty"));
       return;
     }
+    if(object->Shape().ShapeType()<=TopAbs_FACE){
     Shapes[object->ID()]=object;
     Shapes.at(object->ID())->SetID(object->ID());
     context->Display(Shapes.at(object->ID()),true);
+    }
+    else{
+      Shapes[object->ID()]=object;
+    Shapes.at(object->ID())->SetColor(object->Mat().DiffuseColor());
+    Shapes.at(object->ID())->SetID(object->ID());
+    context->Display(Shapes.at(object->ID()),true);
+    }
 
   }
     return;
@@ -1432,16 +1595,30 @@ void DisplayObject(const Handle(CustomAIS_Shape)& object){
    }
   for(const auto& shape: shapes){
    if(Shapes.find(shape->ID())!=Shapes.end()){
-
+   if(shape->Shape().ShapeType()<=TopAbs_FACE){
    Shapes.at(shape->ID())->SetShape(shape->Shape()); 
-    Shapes.at(shape->ID())->SetMaterialAspect(shape->Mat());
+   Shapes.at(shape->ID())->SetMaterialAspect(shape->Mat());
     context->Redisplay(Shapes.at(shape->ID()),false);
    }
    else{
+    Shapes.at(shape->ID())->SetShape(shape->Shape());
+    Shapes.at(shape->ID())->SetColor(shape->Mat().DiffuseColor());
+    context->Redisplay(Shapes.at(shape->ID()),false);
+   }
+   }
+   else{
     if(shape->ID()!=-1){
+    if(shape->Shape().ShapeType()<=TopAbs_FACE){
     Shapes[shape->ID()]=shape;
     Shapes.at(shape->ID())->SetID(shape->ID());
     context->Display(Shapes.at(shape->ID()),false);
+    }
+    else{
+    Shapes[shape->ID()]=shape;
+    Shapes.at(shape->ID())->SetID(shape->ID());
+    Shapes.at(shape->ID())->SetColor(shape->Mat().DiffuseColor());
+    context->Display(Shapes.at(shape->ID()),false);
+    }
     }
     else{
       LoadMessage(tr(""),tr("ID is negative"));
@@ -1845,7 +2022,7 @@ void mousePressEvent(QMouseEvent* event) override{
         double projX,projY,projZ=0.0;
         view->ConvertToGrid(static_cast<int>(std::lround(event->pos().x()*dpr)),static_cast<int>(std::lround(event->pos().y()*dpr)),projX,projY,projZ);
         LineStartPoint=gp_Pnt(projX,projY,projZ);
-       
+         SelectPoint(LineStartPoint);
       if(!ChosenShape.IsNull()){
          
           IsSelectedColorUsed=false;
@@ -1935,7 +2112,9 @@ void mousePressEvent(QMouseEvent* event) override{
         auto pnt=context->MainSelector()->PickedPoint(1);
         LineStartPoint=pnt;
         st1=WIRES_SELECT;
-        
+        x_value=LineStartPoint.X();
+        y_value=LineStartPoint.Y();
+        z_value=LineStartPoint.Z();
         return;
       }
       else{
@@ -1975,8 +2154,12 @@ void mousePressEvent(QMouseEvent* event) override{
         wireselector->SetSelectedWire(selWire);
         auto pnt=context->MainSelector()->PickedPoint(1);
         LineStartPoint=pnt;
+         SelectPoint(LineStartPoint);
         st1=WIRE_SELECT;
         wireselector->SelectWire();
+        x_value=LineStartPoint.X();
+        y_value=LineStartPoint.Y();
+        z_value=LineStartPoint.Z();
         return;
       }
       return;
@@ -2008,6 +2191,7 @@ void mousePressEvent(QMouseEvent* event) override{
         pointMarker->SetMarker(Aspect_TOM_O);
       }
       LineStartPoint=pnt;
+       SelectPoint(LineStartPoint);
       Handle(Geom_Point) geom_pnt=new Geom_CartesianPoint(pnt.X(),pnt.Y(),pnt.Z());
       pointMarker->SetComponent(geom_pnt);
 
@@ -2023,7 +2207,84 @@ void mousePressEvent(QMouseEvent* event) override{
         return;
      }
      if(CurrentSelMode==4){  //When currentSelMode is 4,it is a face
-       faceselector->UnSelectFace();
+       if(selectFaces->isChecked()){
+        Handle(SelectMgr_EntityOwner) owner=context->SelectedOwner();
+        Handle(AIS_InteractiveObject) obShape=Handle(AIS_InteractiveObject)::DownCast(owner->Selectable());
+        if(!obShape){
+          cout<<"Failed To Cast"<<"\n";
+          return;
+        } 
+        selShape=Handle(CustomAIS_Shape)::DownCast(obShape);
+       
+        if(!owner){
+           std::cout<<"Failed To Cast To an object of SelectMgr_EntityOwner"<<"\n";
+          return;
+        }
+       Handle(StdSelect_BRepOwner) selectedEntity=Handle(StdSelect_BRepOwner)::DownCast(owner);
+        if(!selectedEntity){
+          std::cout<<"Failed To Cast To an object of StdSelect_BRepOwner"<<"\n";
+          return;
+        }
+        
+        if(selectedEntity->Shape().ShapeType()==TopAbs_FACE){
+            selFace=TopoDS::Face(selectedEntity->Shape());
+            faceselector->SetSelectedFace(selFace);
+            if(selFace.IsNull()){
+               std::cout<<"Failed To Cast To Face"<<"\n";
+               return;
+            }
+           selFaceShape=selectedEntity->Shape();
+          std::cout<<"It is a Face"<<"\n";
+        }
+        else{
+            std::cout<<"It is not a Face"<<"\n";
+            QString str= shapetypemap.at(selectedEntity->Shape().ShapeType());
+           std::cout<<"Shape's Type :"<<str.toUtf8().toStdString()<<"\n ";
+
+            return;
+        }
+        faceselectors->AddToSelection(selShape,selFace);
+       try{
+       gp_Pnt selectedPoint=context->MainSelector()->PickedPoint(1);
+       selFacePoint=selectedPoint;
+       LineStartPoint=selectedPoint;
+        int_x=selectedPoint.X();
+        int_y=selectedPoint.Y();
+        int_z=selectedPoint.Z();
+       std::cout<<"Surface Points: "<<int_x<<","<<int_y<<","<<int_z<<"\n";
+      gp_Pnt centroid=GetSurfaceCentre(selFace);
+      if(!pointMarker){
+        pointMarker=new AIS_Point(new Geom_CartesianPoint(0.0,0.0,0.0));
+        pointMarker->SetColor(Quantity_NOC_PERU);
+        pointMarker->SetMarker(Aspect_TOM_O);
+      }
+      Handle(Geom_Point) geom_pnt=new Geom_CartesianPoint(centroid.X(),centroid.Y(),centroid.Z());
+      pointMarker->SetComponent(geom_pnt);
+      x_value=centroid.X();
+      y_value=centroid.Y();
+      z_value=centroid.Z();
+      if(context->IsDisplayed(pointMarker)){
+         context->Remove(pointMarker,true);
+         context->Display(pointMarker,0,0,true); 
+      }
+      else{
+      context->Display(pointMarker,0,0,true);
+      }
+      
+        x_value=LineStartPoint.X();
+        y_value=LineStartPoint.Y();
+        z_value=LineStartPoint.Z();
+       
+       }
+       catch(const Standard_OutOfRange& r){
+        cout<<"Did not intersect with the face"<<"\n";
+         FlushViewEvent();
+       return;
+       }
+       return;
+       }
+       else{
+        faceselector->UnSelectFace();
     
         Handle(SelectMgr_EntityOwner) owner=context->SelectedOwner();
         Handle(AIS_InteractiveObject) obShape=Handle(AIS_InteractiveObject)::DownCast(owner->Selectable());
@@ -2067,6 +2328,7 @@ void mousePressEvent(QMouseEvent* event) override{
        gp_Pnt selectedPoint=context->MainSelector()->PickedPoint(1);
        selFacePoint=selectedPoint;
        LineStartPoint=selectedPoint;
+        SelectPoint(LineStartPoint);
         int_x=selectedPoint.X();
         int_y=selectedPoint.Y();
         int_z=selectedPoint.Z();
@@ -2089,18 +2351,17 @@ void mousePressEvent(QMouseEvent* event) override{
       else{
       context->Display(pointMarker,0,0,true);
       }
-      OnHighlight(selShape,selFaceShape,CurrentSelMode);
-       if(selShape){
-         if(context->IsDisplayed(selShape)){
-          context->Redisplay(selShape,true);
-         }
-         }
+      
+        x_value=LineStartPoint.X();
+        y_value=LineStartPoint.Y();
+        z_value=LineStartPoint.Z();
        faceselector->SelectFace();
        }
        catch(const Standard_OutOfRange& r){
         cout<<"Did not intersect with the face"<<"\n";
          FlushViewEvent();
        return;
+       }
        }
     
 
@@ -2113,7 +2374,60 @@ void mousePressEvent(QMouseEvent* event) override{
 
     }
     if(CurrentSelMode==2){ //for edge
-         edgeselector->UnSelectEdge();
+        if(selectEdges->isChecked()){
+        Handle(SelectMgr_EntityOwner) owner=context->SelectedOwner();
+        if(!owner){
+           std::cout<<"Failed To Cast To an object of SelectMgr_EntityOwner"<<"\n";
+          return;
+        }
+         Handle(AIS_InteractiveObject) obShape=Handle(AIS_InteractiveObject)::DownCast(owner->Selectable());
+        if(!obShape){
+          cout<<"Failed To Cast"<<"\n";
+        } 
+      selShape=Handle(CustomAIS_Shape)::DownCast(obShape);
+      if(selShape){
+        
+        std::cout<<"Failed to cast to an object of CustomAIS_Shape"<<"\n";
+      }
+      else{
+      selCurveShape=Handle(CurveAIS_Shape)::DownCast(obShape);
+      if(selCurveShape){
+        
+        std::cout<<"Converted To an object of CurveAIS_Shape"<<"\n";
+      }
+      }
+       Handle(StdSelect_BRepOwner) selectedEntity=Handle(StdSelect_BRepOwner)::DownCast(owner);
+       if(!selectedEntity){
+        std::cout<<"Failed To Cast To an object of StdSelect_BRepOwner"<<"\n";
+          return;
+       }
+       
+       if(selectedEntity->Shape().ShapeType()==TopAbs_EDGE){
+            selEdge=TopoDS::Edge(selectedEntity->Shape());
+            if(selEdge.IsNull()){
+               std::cout<<"Failed To Cast To an Edge"<<"\n";
+               return;
+            }
+           
+          std::cout<<"It is an Edge"<<"\n";
+        }
+        else{
+          std::cout<<"It is not an edge"<<"\n";
+            QString str= shapetypemap.at(selectedEntity->Shape().ShapeType());
+           std::cout<<"Shape's Type :"<<str.toUtf8().toStdString()<<"\n ";
+
+            return;
+        }
+      if(selShape){
+        edgeselectors->AddToSelection(selShape,selEdge);
+      }
+      else{
+        edgeselectors->AddToSelection(selCurveShape,selEdge);
+      }
+      return;
+      }
+      else{
+        edgeselector->UnSelectEdge();
          Handle(SelectMgr_EntityOwner) owner=context->SelectedOwner();
         if(!owner){
            std::cout<<"Failed To Cast To an object of SelectMgr_EntityOwner"<<"\n";
@@ -2177,6 +2491,7 @@ void mousePressEvent(QMouseEvent* event) override{
         st1=EDGE_SELECT;
          gp_Pnt selectedPoint=context->MainSelector()->PickedPoint(1);
          LineStartPoint=selectedPoint;
+         SelectPoint(LineStartPoint);
          int_x=selectedPoint.X();
          int_y=selectedPoint.Y();
          int_z=selectedPoint.Z();
@@ -2188,10 +2503,13 @@ void mousePressEvent(QMouseEvent* event) override{
           secondTrimShape=selShape;
           trimSecondPoint=LineStartPoint;
         }
+        x_value=LineStartPoint.X();
+        y_value=LineStartPoint.Y();
+        z_value=LineStartPoint.Z();
         edgeselector->SelectEdge();
          FlushViewEvent();
          return;
-      
+        }
     }
       
     PrintSelection(CurrentSelMode);
@@ -2320,13 +2638,21 @@ void mousePressEvent(QMouseEvent* event) override{
       DisplayGizmoOnObject(object); //
       CheckDisplayStatus(ObjectGizmo,context->DisplayStatus(ObjectGizmo));
       Handle(AIS_Shape) tmpshape=Handle(AIS_Shape)::DownCast(object);
+      if(selectShapes->isChecked()){
+        if(tmpshape){
+          shapeselectors->AddToSelection(tmpshape);
+        }
+      }
+      else{
       if(tmpshape){
         shapeselector->SetSelectedShape(tmpshape);
+      }
+      shapeselector->SelectShape();
       }
       view->Redraw(); //flushes all the arrays of floating points
       emit QueryDebugMessage(str);
 }    
-     shapeselector->SelectShape();   
+        
      Handle(CustomAIS_Shape) OShape=Handle(CustomAIS_Shape)::DownCast(object);
     if(!OShape.IsNull()){
      //ChosenShape still points to the same object as owner->Selectable()
@@ -2365,6 +2691,18 @@ void mousePressEvent(QMouseEvent* event) override{
  }
 }     
 else if(event->button()==Qt::RightButton){
+  if(dc==DC_TWOPNT){
+    LineMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
+  if(dc==DC_PRIMCIRCLE){
+    primCircleMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
+  if(dc==DC_PRIMLINE){
+    primLineMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
   if(st1==WIRES_SELECT){
     groupWireMenu->exec(event->globalPosition().toPoint());
     return;
@@ -2870,6 +3208,9 @@ signals:
   void OnEmitSurfaceInfo(const SurfaceInfo& surfaceinfo);
   void EmitMaterial();
   void UnEmitMaterial();
+  void EmitFloatValue(const float& val);
+  void EmitLineValue(const gp_Dir& dir,const gp_Pnt& point,const float& val);
+  void EmitCircleValue(const gp_Ax2& axis,const float& radius);
 public slots:
 //This returns the top view
 void SetDrawCircleAction(bool toggled){
@@ -3458,7 +3799,7 @@ void OnHandlePositionedAxis(bool value){
 }
 void OnHandleOriginAxis(bool value){
    if(value){
-  EmitAxis(gp_Ax2(gp_Pnt(0.0,0.0,0.0),chosenDir));
+    EmitAxis(gp_Ax2(gp_Pnt(0.0,0.0,0.0),chosenDir));
  }
  else{
    emit OnEmitFaceBool(value);
@@ -4143,9 +4484,7 @@ void OnSelectOthersForChamfer(){
   }
   return;
 }
-void OnConvertToPolyLine(){
-  return;
-}
+
 void OnHandleCopyMaterial(bool value){
   if(value){
   if(ChosenShape){
@@ -4952,8 +5291,9 @@ void OnMoveToFace(bool isSelected){
   return;
 }
 void OnHandleStartMove(){ //Select Point
+  LoadMessage(tr(""),tr("Select an object in space that you want to move\n NB: the object should not contain the face to which you want to move the object"));
   LoadMessage(tr(""),tr("Select a point on a face to position the selected object"));
-
+  
   return;
 }
 void OnExecuteMove(){
@@ -5227,6 +5567,49 @@ return;
 void DeleteWires(){
 return;
 }
+void OnHandleGatheredEdges(bool value){
+  if(value){
+    context->Deactivate();
+    context->Activate(2);
+    CurrentSelMode=2;
+    edgeselectors->UnSelectAll();
+  }
+  else{
+    context->Deactivate();
+    CurrentSelMode=0;
+    context->Activate(0);
+    edgeselectors->Nullify();
+  }
+  return;
+}
+void OnHandleGatheredFace(bool check){
+  if(check){
+    context->Deactivate();
+    CurrentSelMode=4;
+    context->Activate(0);
+    faceselectors->UnSelectAll();
+  }
+  else{
+    context->Deactivate();
+    context->Activate(0);
+    CurrentSelMode=0;
+    faceselectors->Nullify();
+  }
+  return;
+}
+void OnHandleGatheredShape(bool check){
+  if(check){
+    
+    context->Deactivate();
+    context->Activate(0);
+    CurrentSelMode=0;
+    shapeselectors->UnSelectAll();
+  }
+  else{
+    shapeselectors->Nullify();
+  }
+  return; 
+}
 void OnHandleConvertEdgeToWire(){
   if(selShape){
      ConvertEdgeToWire();
@@ -5249,6 +5632,243 @@ void OnHandleConvertEdgeToWire(){
       }
     }
   }
+  return;
+}
+void OnHandleStartForTransLineDialog(){
+  transLineDialog->SetPoint(LineStartPoint);
+  transLineDialog->exec();
+  
+  return;
+}
+void onHandleContinueForTransLineDialog(){
+  //also known as editing
+  transLineDialog->exec();
+  return;
+}
+void OnHandleCopyLength(bool value){
+  if(value){
+    emit EmitFloatValue(transLineDialog->Length());
+  }
+  else{
+   emit OnEmitFaceBool(value);
+  }
+  return;
+}
+void OnHandleCopyRadius(bool value){
+  if(value){
+    emit EmitFloatValue(transCircleDialog->Radius());
+    return;
+  }
+  else{
+   emit OnEmitFaceBool(value);
+  }
+  return;
+}
+/*
+void OnHandleOriginAxis(bool value){
+   if(value){
+    EmitAxis(gp_Ax2(gp_Pnt(0.0,0.0,0.0),chosenDir));
+ }
+ else{
+   emit OnEmitFaceBool(value);
+ }
+  return;
+}*/
+void OnHandleCopyAxis(bool value){
+  if(value){
+    emit EmitAxis(gp_Ax2(gp_Pnt(0.0,0.0,0.0),transLineDialog->ChangedDir())); 
+  }
+  else{
+    emit OnEmitFaceBool(value);
+  }
+   return;
+}
+void OnHandleCopyCircleAxis(bool value){
+  if(value){
+    emit EmitAxis(transCircleDialog->ChangedAxis());
+  }
+  else{
+    emit OnEmitFaceBool(value);
+  }
+  return;
+}
+void OnHandleNullifyShape(){
+  transLineDialog->NullifyShape();
+  return;
+}
+void OnHandleNullifyCircleShape(){
+ transCircleDialog->NullifyShape();
+return;
+}
+void OnHandleConvertPrimLine(bool value){
+  if(value){
+   emit EmitLineValue(transLineDialog->ChangedDir(),LineStartPoint,transLineDialog->Length());
+  }
+  else{
+    emit OnEmitFaceBool(value);
+  }
+  return;
+}
+
+void OnHandleConvertPrimCircle(bool value){
+ if(value){
+     emit EmitCircleValue(transCircleDialog->ChangedAxis(),transCircleDialog->Radius());
+
+ }
+ else{
+ emit OnEmitFaceBool(value);
+ }
+
+return;
+}
+void OnStartPrimLine(bool value){
+  if(value){
+    dc=DC_PRIMLINE;
+  }
+  else{
+  dc=DC_NULL;
+  }
+return;
+}
+void OnEndPrimLine(){
+  dc=DC_NULL;
+  transLineDialog->EraseShape();
+  primLine->setChecked(false);
+  return;
+}
+void OnEndPrimCircle(){
+dc=DC_NULL;
+transCircleDialog->EraseShape();
+primCircle->setChecked(false);
+return;
+}
+void OnStartPrimCircle(bool value){
+if(value){
+  dc=DC_PRIMCIRCLE;
+}
+else{
+ dc==DC_NULL;
+}
+return;
+}
+
+void OnHandlePrimCircle(){
+  transCircleDialog->SetPoint(LineStartPoint);
+  transCircleDialog->exec();
+  return;
+}
+void OnContinuePrimCircle(){
+transCircleDialog->exec();
+  return;
+}
+void OnHandleTwoPointLine(bool value){
+  if(value){
+    dc=DC_TWOPNT;
+  }
+  else{
+    dc=DC_NULL;
+  }
+  return;
+}
+void OnHandleFirstTwoPoint(bool value){
+  if(value){
+    LoadMessage(tr(""),tr("Select The First Point,\n Hint: You can select the point within any Selection mode"));
+    tpoint=TP_FIRST;
+  }
+  else{
+    tpoint=TP_NULL;
+  }
+  return;
+}
+void OnHandleSecondTwoPoint(bool value){
+  if(value){
+    LoadMessage(tr(""),tr("Select The second Point,\n Hint: You can select the point within any Selection mode"));
+    tpoint=TP_SECOND;
+  }
+  else{
+    tpoint=TP_NULL;
+  }
+  return;
+}
+
+void SelectPoint(const gp_Pnt& pnt){
+  switch(tpoint){
+    case TP_FIRST:{
+      twoPointArray[0]=pnt;
+      break;
+    }
+    case TP_SECOND:{
+      twoPointArray[1]=pnt;
+      break;
+    }
+  }
+  return;
+}
+void OnConvertTwoPointToPrimLine(bool value){
+  if(value){
+  gp_Vec disVec(twoPointArray[0],twoPointArray[1]);
+  emit EmitLineValue(gp_Dir(disVec),twoPointArray[0],(double)disVec.Magnitude());
+  }
+  else{
+  emit OnEmitFaceBool(value);
+  }
+ return;
+}
+void EndTwoPointLine(){
+  dc=DC_NULL;
+  LineAction->setChecked(false);
+  return;
+}
+
+void OnBuildAction(){
+  BRepBuilderAPI_MakeEdge edgemaker(twoPointArray[0],twoPointArray[1]);
+  TopoDS_Edge edge;
+  if(edgemaker.IsDone()){
+   edge=edgemaker.Edge();
+  }
+  else{
+    LoadMessage(tr(""),tr("Failed To Construct Line"));
+    return;
+  }
+  Handle(CustomAIS_Shape) shape=new CustomAIS_Shape(edge);
+  context->Display(shape,true);
+  return;
+}
+void OnHandleTwoPointAxis(bool value){
+  if(value){
+    gp_Vec disVec(twoPointArray[0],twoPointArray[1]);
+    gp_Ax2 axis(gp_Pnt(0.0,0.0,0.0),gp_Dir(disVec));
+     emit EmitAxis(axis); 
+    return;
+  }
+  else{
+     emit OnEmitFaceBool(value);
+  }
+  return;
+}
+void OnHandleTwoPointLength(bool value){
+  if(value){
+    gp_Vec disVec(twoPointArray[0],twoPointArray[1]);
+     emit EmitFloatValue(disVec.Magnitude());
+    return;
+  }
+  else{
+     emit OnEmitFaceBool(value);
+  }
+  return;
+}
+void OnHandleViewLength(){
+   gp_Vec disVec(twoPointArray[0],twoPointArray[1]);
+   LoadMessage(tr("Length Info"),QString("Current Line's Length: ")+QString::number(disVec.Magnitude()));
+  return;
+}
+void OnHandleViewAxis(){
+  gp_Vec disVec(twoPointArray[0],twoPointArray[1]);
+  gp_Dir dir(disVec);
+  QString str=QString("X: ")+QString::number(dir.X())+QString("\n");
+  QString str1=QString("Y: ")+QString::number(dir.Y())+QString("\n");
+  QString str2=QString("Z: ")+QString::number(dir.Z())+QString("\n");
+  LoadMessage(tr("Axis Direction Info"),str+str1+str2);
   return;
 }
 };

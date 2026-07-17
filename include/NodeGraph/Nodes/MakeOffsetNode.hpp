@@ -44,6 +44,9 @@ unsigned int nPorts(PortType portType) const override{
 QString caption() const override{
     return tr("Make Face Offset Node");
 }
+QString name() const override{
+    return caption();
+}
 void SetToFalse() override{
     isPortASet=false;
     return;
@@ -156,6 +159,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
   }
   emit dataUpdated(0);
 }
+}
 std::shared_ptr<NodeData> outData(PortIndex port) override{
     if(outputData){
         return std::static_pointer_cast<NodeData>(outputData);
@@ -171,7 +175,7 @@ QWidget* embeddedWidget() override{
 
 class MakeOffsetWire:public NodeDelegateModel,public NodeInitializer{
 private:
-td::weak_ptr<WireNodeData> inputWireData;
+std::weak_ptr<WireNodeData> inputWireData;
 std::weak_ptr<TemplatedData<GeomAbs_JoinType>> joinData;
 std::weak_ptr<BooleanNodeData> setApproxData;
 std::weak_ptr<FloatNodeData> offsetData;
@@ -202,6 +206,9 @@ unsigned int nPorts(PortType portType) const override{
 }
 QString caption() const override{
     return tr("Make Wire Offset Node");
+}
+QString name() const override{
+    return caption();
 }
 void SetToFalse() override{
     isPortASet=false;
@@ -315,6 +322,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
   }
   emit dataUpdated(0);
 }
+}
 std::shared_ptr<NodeData> outData(PortIndex port) override{
     if(outputData){
         return std::static_pointer_cast<NodeData>(outputData);
@@ -325,6 +333,7 @@ std::shared_ptr<NodeData> outData(PortIndex port) override{
 QWidget* embeddedWidget() override{
     return nullptr;
 }
+
 };
 
 

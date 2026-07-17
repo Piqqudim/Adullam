@@ -67,6 +67,7 @@ bool ColorIsSet=false;
 bool isEdgeSelected=false;
 bool isFaceSelected=false;
 bool isWireSelected=false;
+bool isTransformApplied=false;
 Graphic3d_MaterialAspect material;
 Quantity_Color initialColor;
 gp_Trsf initialTrsf; //compounded transformation
@@ -233,7 +234,7 @@ Graphic3d_MaterialAspect Mat() const{
 void SetMaterialAspect(const Graphic3d_MaterialAspect& mat){
   material=mat;
   SetMaterial(mat);
-  InitColor(mat.DiffuseColor()); //always set to diffuse color;
+  
   return;
 }
 void setCustomColor(const TopoDS_Shape& shape,const Quantity_Color& color){

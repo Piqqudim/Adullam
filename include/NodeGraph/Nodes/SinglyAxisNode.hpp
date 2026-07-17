@@ -2,8 +2,10 @@
 #include<NodeDelegateModel>
 #include<AxisNodeData.hpp>
 #include<memory>
+#include<JsonShapeConverter.hpp>
 using namespace std;
 using namespace QtNodes;
+using namespace JsonConverter;
 class SinglyAxisNode:public NodeDelegateModel{
 private:
 gp_Ax2 outputDir;
@@ -14,6 +16,16 @@ SinglyAxisNode(){
 }
 gp_Ax2 Dir() const{
     return outputDir;
+}
+QJsonObject save() const override{
+    QJsonObject object=NodeDelegateModel::save();
+    object["Axis"]=ToAxisJsonFormat(outputDir);
+    return object;
+}
+void load(const QJsonObject& object) override{
+    outputDir=ToAxisFormat(object);
+    SetDir(outputDir);
+    return;
 }
 void SetDir(const gp_Ax2& dir){
     outputDir=dir;

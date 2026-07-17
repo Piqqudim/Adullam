@@ -19,7 +19,7 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
      ModelAction.reset(new QAction(tr("Model"),menubar.get()));
      ModifyMenuAction.reset(new QAction(tr("Modify"),menubar.get()));
      EditorAction=std::make_unique<QAction>(tr("Editor"),nullptr);
-
+     
      dockwidget_1.reset(new DockWidget(this,tr("Item")));
      dockwidget_2.reset(new DockWidget(this,tr("")));
      setWindowTitle(tr("NodeCAD"));
@@ -52,8 +52,9 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
      tabwidget_1->addTab(fileSystemWidget.get(),tr("File System"));
      fnodewidget.reset(new FloatNodeWidget(tr("Input"),0.0));
      
-
-     setCentralWidget(Splitter.get());
+     centralstackwidget->addWidget(Splitter.get());
+     
+     setCentralWidget(centralstackwidget.get());
      
     
      
@@ -134,6 +135,10 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
     connect(centralwidget_1.get(),&DrawingCentralWidget::EmitShape,this,&Window_Frame::OnHandleEmittedShape);
     connect(centralwidget_1.get(),&DrawingCentralWidget::EmitTransformedShape,this,&Window_Frame::OnHandleEmittedTrsfShape);
     connect(sceneSettingWidget->hilisection->FaceColorWidget(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnSpawnColorForBackgroundColor);
+    connect(sceneSettingWidget->hilisection->FaceColorPane(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnSpawnColorForFace);
+    connect(sceneSettingWidget->hilisection->EdgeColorPane(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnSpawnColorForEdge);
+    connect(sceneSettingWidget->hilisection->WireColorPane(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnSpawnColorForWire);
+    connect(sceneSettingWidget->hilisection->ShapeColorPane(),&ColorPane::IsDoubleClicked,this,&Window_Frame::OnSpawnColorForShape);
     connect(colorwidget_1.get(),&ColorCollectionWidget::GetSelectedColor,this,&Window_Frame::OnSetSelectionColorFromColorWidget);
     connect(colorDialog_1->ColorWidget(),&ColorCollectionWidget::GetSelectedColor,this,&Window_Frame::OnHandleColorForBackground);
     connect(centralwidget_1->ConstructPointNodeAction.get(),&QAction::toggled,this,&Window_Frame::OnHandleConstructPointNode);
@@ -212,6 +217,12 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
    connect(centralwidget_1.get(),&DrawingCentralWidget::EmitGatherWire,this,&Window_Frame::OnHandleGatherWires);
    connect(editorMenu->enableConsoleLog.get(),&QAction::toggled,this,&Window_Frame::OnDisplayLogWidget);
    connect(centralwidget_1.get(),&DrawingCentralWidget::OnEmitSurfaceInfo,this,&Window_Frame::OnHandleSurfaceInfo);
+   connect(centralwidget_1.get(),&DrawingCentralWidget::EmitFloatValue,this,&Window_Frame::OnHandleLength);
+   connect(centralwidget_1.get(),&DrawingCentralWidget::EmitLineValue,this,&Window_Frame::OnHandlePrimLine);
+   connect(centralwidget_1.get(),&DrawingCentralWidget::EmitCircleValue,this,&Window_Frame::OnHandlePrimCircle);
+   connect(FileActionMenu->openStepFile.get(),&QAction::triggered,this,&Window_Frame::OpenStpFile);
+   //connect()
+   return;
 
 }  
 

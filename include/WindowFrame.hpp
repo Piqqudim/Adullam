@@ -35,6 +35,7 @@
 #include<EdgeInfoWidget.hpp>
 #include<LoggerWidget.hpp>
 #include<LinePresentationWidget.hpp>
+
 using namespace Shape_Utility;
 using namespace SURFACE;
 class Window_Frame:public QMainWindow{
@@ -81,7 +82,8 @@ class Window_Frame:public QMainWindow{
     float cubeSize=0.0f; //This variable is always set when we enabled an object DrawCubeWidget
     DrawCubeDialog* dcubedialog=nullptr;
     QString currentWorkingDirectory=QString();
-
+    std::unique_ptr<QStackedWidget> centralstackwidget=make_unique<QStackedWidget>();
+    TopoDS_Shape ReadShape;
   public:
   Window_Frame(QWidget* parent_widget);
   ~Window_Frame(){
@@ -107,7 +109,7 @@ class Window_Frame:public QMainWindow{
     }
   }
   
-  signals:
+signals:
   void ChangeCentralWidget(QWidget* widget); //This one is sent whem we want to change the current widget on view
   void GetOpenFileFromDialog(const QString& filepath);
   void OnSetNodeWidgetTripleValue(const Point& pnt);
@@ -116,11 +118,12 @@ class Window_Frame:public QMainWindow{
   void IsDone();
   void emitCurrentFolder(QString Folder);
   void emitCurrentFile(QString nCADFile);
-  public slots:
-  void OnSetToCurrentCentralWidget(QWidget* widget){
+  
+public slots:
+void OnSetToCurrentCentralWidget(QWidget* widget){
     return;
   }  //Get the sent widget and Set it to the current central widget...
- void OnSetDrawCircleBool(bool check){
+void OnSetDrawCircleBool(bool check){
     if(centralwidget_1.get()!=nullptr){
         //if centralwidget's pointer is not equal to nullptr
         centralwidget_1->DrawCircle=check;
@@ -2049,13 +2052,67 @@ void OnHandleEmittedIndexToNullifyShape(const int& index){
 void OnSpawnColorForBackgroundColor(const size_t& ind){
   if(colorDialog_1){
     colorDialog_1->exec();
+    sceneSettingWidget->hilisection->SetCP(CP_BACKGROUND);
+
   }
   return;
 }
+void OnSpawnColorForFace(const size_t& ind){
+  colorDialog_1->exec();
+  sceneSettingWidget->hilisection->SetCP(CP_FACE);
+  return;
+}
+void OnSpawnColorForEdge(const size_t& ind){
+  colorDialog_1->exec();
+  sceneSettingWidget->hilisection->SetCP(CP_EDGE);
+  return;
+}
+void OnSpawnColorForWire(const size_t& ind){
+  colorDialog_1->exec();
+  sceneSettingWidget->hilisection->SetCP(CP_WIRE);
+  return;
+}
+void OnSpawnColorForShape(const size_t& ind){
+  colorDialog_1->exec();
+  sceneSettingWidget->hilisection->SetCP(CP_SHAPE);
+  return;
+}
 void OnHandleColorForBackground(){
+  COLORPANE cp=sceneSettingWidget->hilisection->cpState();
+  switch(cp){
+  case CP_BACKGROUND:{
   sceneSettingWidget->hilisection->FaceColorWidget()->SetColorFromOC(colorDialog_1->ColorWidget()->GetChosenColor());
   centralwidget_1->view->SetBackgroundColor(colorDialog_1->ColorWidget()->GetChosenColor());
   centralwidget_1->view->Redraw();
+   
+  return;
+  }
+  case CP_FACE:{
+    sceneSettingWidget->hilisection->FaceColorPane()->SetColorFromOC(colorDialog_1->GetColor());
+    centralwidget_1->faceselector->SetSelectedColor(colorDialog_1->GetColor());
+   
+    return;
+  }
+  case CP_EDGE:{
+    sceneSettingWidget->hilisection->EdgeColorPane()->SetColorFromOC(colorDialog_1->GetColor());
+    centralwidget_1->edgeselector->SetSelectedColor(colorDialog_1->GetColor());
+    
+    return;
+  }
+  case CP_WIRE:{
+    sceneSettingWidget->hilisection->WireColorPane()->SetColorFromOC(colorDialog_1->GetColor());
+    centralwidget_1->wireselector->SetSelectedColor(colorDialog_1->GetColor());
+   
+    return;
+  }
+  case CP_SHAPE:{
+    sceneSettingWidget->hilisection->ShapeColorPane()->SetColorFromOC(colorDialog_1->GetColor());
+    centralwidget_1->shapeselector->SetSelectionColor(colorDialog_1->GetColor());
+    
+    return;
+  }
+}
+  
   return;
 }
 void OnHandleGatherWires(bool checked){
@@ -2077,12 +2134,12 @@ void OnDisplayLogWidget(bool checked){
   if(!logwidget){
     return;
   }
-  dockwidget_1->AddTab(tr("Console Log"),logwidget.get());
+  dockwidget_2->AddTab(tr("Console Log"),logwidget.get());
   }
   else{
-     int i=dockwidget_1->GetTabWidget()->indexOf(logwidget.get());
+     int i=dockwidget_2->GetTabWidget()->indexOf(logwidget.get());
      if(i!=-1){
-      dockwidget_1->GetTabWidget()->removeTab(i);
+      dockwidget_2->GetTabWidget()->removeTab(i);
      }
   }
   return;
@@ -2096,6 +2153,132 @@ void OnHandleSurfaceInfo(const SURFACE::SurfaceInfo& info){
 
   return;
 }
+void OnHandleLength(const float& val){
+  nodewidget->nodeFloatValue=val;
+  nodewidget->shapedraw=SP_FLOAT;
+  return;
+}
+
+void OnHandlePrimLine(const gp_Dir& dir,const gp_Pnt& pnt_1,const float& val){
+  nodewidget->pnt=pnt_1;
+  nodewidget->lineDir=dir;
+  nodewidget->LineLength=val;
+  nodewidget->shapedraw=SP_PRIMLINE;
+  return;
+}
+void OnHandlePrimCircle(const gp_Ax2& ax,const float& rad){
+  nodewidget->circleAxis=ax;
+  nodewidget->circleRadius=rad;
+  nodewidget->shapedraw=SP_PRIMCIRCLE;
+  return;
+}
+void OpenStpFile(){
+  QFileDialog dialog(nullptr,tr("Open Step File"),QString(),tr("CAD Files(*.step  *.stp)"));
+  QString filename;
+  if(dialog.exec()){
+   filename=dialog.selectedFiles().first();
+  }
+  if(filename.isEmpty()){
+    return;
+  }
+   STEPControl_Reader reader;
+   if(reader.ReadFile(filename.toStdString().c_str())==IFSelect_RetDone){
+     reader.TransferRoots();
+     ReadShape=reader.OneShape();
+   }
+   else{
+   if(!ReadShape.IsSame(TopoDS_Shape())){
+    ReadShape=TopoDS_Shape();
+   }
+    LoadMessage(tr("Step File Reading Error"),tr("Failed to read file"));
+    return; 
+   }
+   if(ReadShape.IsSame(TopoDS_Shape(TopoDS_Shape()))){
+    LoadMessage(tr(""),tr("The Read(Red) Shape is empty"));
+    return;
+   }
+   centralwidget_1->DisplayObjectFromSuccessfullRead(ReadShape);
+   ReadShape=TopoDS_Shape();
+  return;
+}
+void OpenIgesFile(){
+   QFileDialog dialog(nullptr,tr("Open IGES File"),QString(),tr("CAD Files(*.iges *.igs)"));
+  QString filename;
+  if(dialog.exec()){
+   filename=dialog.selectedFiles().first();
+  }
+  if(filename.isEmpty()){
+    return;
+  }
+  IGESControl_Reader reader;
+  if(reader.ReadFile(filename.toStdString().c_str())==IFSelect_RetDone){
+     reader.TransferRoots();
+     ReadShape=reader.OneShape();
+  }
+  else{
+  if(!ReadShape.IsSame(TopoDS_Shape())){
+    ReadShape=TopoDS_Shape();
+  }
+  LoadMessage(tr("Opening IGES File Error"),tr("Failed To read file"));
+  return;
+  }
+   centralwidget_1->DisplayObjectFromSuccessfullRead(ReadShape);
+   ReadShape=TopoDS_Shape();
+
+  return;
+}
+void OpenBRepFile(){
+  QFileDialog dialog(nullptr,tr("Open BRep File"),QString(),tr("CAD Files(*.brep)"));
+  QString filename;
+  if(dialog.exec()){
+   filename=dialog.selectedFiles().first();
+  }
+  if(filename.isEmpty()){
+     return;
+  }
+  BRep_Builder builder;
+  BRepTools::Read(ReadShape,filename.toStdString().c_str(),builder);
+  if(ReadShape.IsSame(TopoDS_Shape())){
+      return;
+  }
+  centralwidget_1->DisplayObjectFromSuccessfullRead(ReadShape);
+  ReadShape=TopoDS_Shape();
+ return;
+}
+void OpenGltfFile(){
+  QFileDialog dialog(nullptr,tr("Open gltf File"),QString(),tr("Mesh Files(*.gltf)"));
+  QString filename;
+  if(dialog.exec()){
+   filename=dialog.selectedFiles().first();
+  }
+  if(filename.isEmpty()){
+    return;
+  }
+  return;
+}
+void openObjFile(){
+  QFileDialog dialog(nullptr,tr("Open OBJ File"),QString(),tr("Mesh Files(*.obj)"));
+  QString filename;
+  if(dialog.exec()){
+   filename=dialog.selectedFiles().first();
+  }
+  if(filename.isEmpty()){
+    return;
+  }
+  return;
+}
+void openSTLFile(){
+  QFileDialog dialog(nullptr,tr("Open STL File"),QString(),tr("CAD Files(*.stl)"));
+  QString filename;
+  if(dialog.exec()){
+   filename=dialog.selectedFiles().first();
+  }
+  if(filename.isEmpty()){
+    return;
+}
+  return;
+}
+
 };
 
 

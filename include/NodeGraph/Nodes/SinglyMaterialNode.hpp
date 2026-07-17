@@ -53,6 +53,17 @@ Graphic3d_MaterialAspect output() const{
 Graphic3d_MaterialAspect& Material(){
     return mat;
 }
+void SetMat(const Graphic3d_MaterialAspect& p_mat){
+    mat=p_mat;
+  if(output_data){
+    output_data->SetData(p_mat);
+  }
+  else{
+    output_data=std::make_unique<MaterialNodeData>(tr(""));
+    output_data->SetData(p_mat);
+  }
+    return;
+}
 unsigned int nPorts(PortType portType) const override{
     switch(portType){
         case PortType::In:{
@@ -87,9 +98,10 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
 }
 std::shared_ptr<NodeData> outData(PortIndex port) override{
     if(output_data){
-        output_data->SetData(mat);
+         return std::static_pointer_cast<NodeData>(output_data);
     }
-    return std::static_pointer_cast<NodeData>(output_data);
+    std::shared_ptr<NodeData> mptr;
+    return mptr;
 }
 void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
    return;

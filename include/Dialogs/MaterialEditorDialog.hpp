@@ -48,12 +48,17 @@ void SetMatNode(SinglyMaterialNode* matnode1){
 }
 public slots:
 void OnHandleOk(){
+    if(!enableCheckBox->isChecked()){
+    if(matnode){
+      matnode->SetMaterial(matsection->GetMaterial());
+    }
+    }
     accept();
   return;
 }
 void OnHandleColorWidget(){
     matsection->SetColor(colorDialog->ColorWidget()->GetChosenColor());
-    matnode->Material()=matsection->GetMaterial();
+    matnode->SetMat(matsection->GetMaterial());
     if(enableCheckBox->isChecked()){
         matnode->OnUpdate();
     }

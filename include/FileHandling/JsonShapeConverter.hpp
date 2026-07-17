@@ -8,6 +8,7 @@
 #include<BRepTools.hxx>
 #include<InfoUtility.hpp>
 #include<Quantity_Color.hxx>
+#include<gp_Ax2.hxx>
 using namespace std;
 using namespace INFO;
 //we will working with objects of QByte Array
@@ -83,4 +84,27 @@ inline Quantity_Color ToColor(const QJsonObject& object){
    Quantity_Color color(r,g,b,Quantity_TOC_RGB);
   return color;
 }
+inline QJsonObject ToAxisJsonFormat(const gp_Ax2& inputAxis){
+   QJsonObject object;
+   object["Pos_X"]=inputAxis.Location().X();
+   object["Pos_Y"]=inputAxis.Location().Y();
+   object["Pos_Z"]=inputAxis.Location().Z();
+   object["Dir_X"]=inputAxis.Direction().X();
+   object["Dir_Y"]=inputAxis.Direction().Y();
+   object["Dir_Z"]=inputAxis.Direction().Z();
+   return object;
+}
+inline gp_Ax2 ToAxisFormat(const QJsonObject& object){
+   double pos_x=object["Pos_X"].toDouble();
+   double pos_y=object["Pos_Y"].toDouble();
+   double pos_z=object["Pos_Z"].toDouble();
+   double dir_x=object["Dir_X"].toDouble();
+   double dir_y=object["Dir_Y"].toDouble();
+   double dir_z=object["Dir_Z"].toDouble();
+   gp_Pnt loc(pos_x,pos_y,pos_z);
+   gp_Dir dir(dir_x,dir_y,dir_z);
+   gp_Ax2 axis(loc,dir);
+   return axis;
+}
+
 }

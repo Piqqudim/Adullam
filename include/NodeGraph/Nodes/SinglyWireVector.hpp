@@ -3,6 +3,7 @@
 #include<VectorDataNodeData.hpp>
 #include<NodeDelegateModel>
 #include<memory>
+#include<ShapeNodeData.hpp>
 using namespace std;
 using namespace QtNodes;
 class SinglyWireVector:public NodeDelegateModel{
@@ -75,6 +76,82 @@ std::shared_ptr<NodeData> outData(PortIndex port) override{
         return static_pointer_cast<NodeData>(outputData);
     }
     return std::static_pointer_cast<NodeData>(outputData);
+}
+void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
+   return;
+}
+QWidget* embeddedWidget() override{ 
+   return nullptr;
+ }
+};
+class SinglyShapeVector:public NodeDelegateModel{
+private:
+std::shared_ptr<VectorDataNode<ShapeNodeData>> output_data;
+vector<TopoDS_Shape> shapes;
+
+
+public:
+SinglyShapeVector(){
+    return;
+}
+unsigned int nPorts(PortType portType) const override{
+    switch(portType){
+        case PortType::In:{
+            return 0;
+        }
+        case PortType::Out:{
+            return 1;
+        }
+    }
+}
+void SetShapes(const vector<TopoDS_Shape> shapes_1){
+    if(shapes_1.empty()){
+        return;
+    }
+    shapes=shapes_1;
+    if(output_data){
+    std::vector<ShapeNodeData> shapenodedatas;
+    for(int i=0;i<shapes_1.size();i++){
+        shapenodedatas.emplace_back(shapes_1.at(i));
+    }
+    output_data->SetData(shapenodedatas);
+    }
+    else{
+        output_data=std::make_shared<VectorDataNode<ShapeNodeData>>(tr(""));
+        std::vector<ShapeNodeData> shapenodedatas;
+    for(int i=0;i<shapes_1.size();i++){
+        shapenodedatas.emplace_back(shapes_1.at(i));
+    }
+    output_data->SetData(shapenodedatas);
+    }
+    emit dataUpdated(0);
+    
+    
+    return;
+}
+QString caption() const override{
+    return tr("Shapes");
+}
+QString name() const override{
+    return caption();
+}
+NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
+    switch(portType){
+        case PortType::Out:{
+            switch(portIndex){
+                case 0:
+                   return VectorDataNode<ShapeNodeData>(tr("outputs"),tr("shapes")).type();
+
+            }
+        }
+    }
+    return {tr(""),tr("")};
+}
+std::shared_ptr<NodeData> outData(PortIndex port) override{
+    if(output_data){
+        return static_pointer_cast<NodeData>(output_data);
+    }
+    return std::static_pointer_cast<NodeData>(output_data);
 }
 void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
    return;

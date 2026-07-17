@@ -37,6 +37,7 @@ public slots:
 void OnHandleOk(){
    value=checkbox->isChecked();
    emit EmitDone();
+   accept();
     return;
 }
 };

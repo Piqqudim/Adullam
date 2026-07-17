@@ -13,7 +13,10 @@ class ShapeNodeData:public NodeData{
     bool hasMaterial=true;  //ByDefault the object has no material
     int Index=-1;
  public:
-  
+explicit ShapeNodeData(const TopoDS_Shape& sh){
+  m_Data=sh;
+  return;
+}
  ShapeNodeData(const Graphic3d_MaterialAspect& mat,const TopoDS_Shape& shape=TopoDS_Shape(),const int& ind=-1){
      m_Data=shape;
      Index=ind;

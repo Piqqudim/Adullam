@@ -3,6 +3,8 @@
 #include<IntegerNodeData.hpp>
 #include<NodeDelegateModel>
 #include<NodeDescription.hpp>
+#include<QtCore/QJsonObject>
+#include<memory>
 using namespace std;
 using namespace QtNodes;
 class IntegerInputNode:public QtNodes::NodeDelegateModel{
@@ -11,7 +13,17 @@ std::shared_ptr<IntegerNodeData> output_data;
 int output=0;
 public:
 IntegerInputNode(){
-
+   return;
+}
+QJsonObject save() const override{
+    QJsonObject object=NodeDelegateModel::save();
+    object["IntegerValue"]=output;
+    return object;
+}
+void load(const QJsonObject& object) override{
+    int d=object["IntegerValue"].toInt();
+    SetOutput(d);
+    return;
 }
 unsigned int nPorts(PortType portType) const override{
     switch(portType){

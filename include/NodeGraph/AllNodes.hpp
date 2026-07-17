@@ -78,8 +78,11 @@
 #include<MakeEvolvedNode.hpp>
 #include<SinglyWireVector.hpp>
 #include<LoftNode.hpp>
-
-
+#include<ToWireNode.hpp>
+#include<ConvertToWireNode.hpp>
+#include<PrimitiveLineNode.hpp>
+#include<MakeOffsetNode.hpp>
+#include<PrimitiveCircleNode.hpp>
 
 
 

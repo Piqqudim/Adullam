@@ -8,6 +8,7 @@ class WireMenu:public QMenu{
 public:
 std::unique_ptr<QAction> convertToNode;
 std::unique_ptr<QAction> convertToFace;
+std::unique_ptr<QAction> convertToPointNode;
 std::unique_ptr<QAction> applyFillet; //this allows you select two edges of the wire and apply fillet to it
 std::unique_ptr<QAction> applyFilletToAll; //this applies to all edges of all wire..
 std::unique_ptr<QAction> chooseVertex;
@@ -24,10 +25,12 @@ WireMenu(){
     applyFilletToAll->setCheckable(true);
     chooseVertex=std::make_unique<QAction>(tr("Choose Vertex"));
     chooseVertex->setCheckable(true);
+    convertToPointNode=std::make_unique<QAction>(tr("Convert To Point Node"));
     chooseRadius=std::make_unique<QAction>(tr("Choose Radius"));
-
+    convertToPointNode->setCheckable(true);
     addAction(convertToNode.get());
     addAction(convertToFace.get());
+    addAction(convertToPointNode.get());
     addAction(applyFillet.get());
     addAction(applyFilletToAll.get());
     addAction(chooseVertex.get());

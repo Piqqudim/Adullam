@@ -422,6 +422,11 @@ QWidget* embeddedWidget() override{
 };
 
 
+/*class ClassTwoSweepMode:public NodeDelegateModel,public NodeInitializer{
+private:
+std::weak_ptr<ShapeNodeData> inputShape; 
+};
+*/
 
 
 

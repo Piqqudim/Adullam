@@ -20,6 +20,7 @@ class EdgeSelector{
 private:
 Handle(AIS_Shape) myShape;
 TopoDS_Edge selectedEdge;
+TopoDS_Edge chosenEdge;
 Quantity_Color selectionColor; //color for selection
 Quantity_Color edgeColor; //previous edge color
 bool isSelected=false;
@@ -62,6 +63,7 @@ void SelectEdge(){
    if(st==6){ //for edge
     myShape->Color(edgeColor);
     myShape->SetColor(selectionColor);
+    chosenEdge=TopoDS::Edge(myShape->Shape());
     isSelected=true;
     if(context->IsDisplayed(myShape)){
         context->Redisplay(myShape,true);
@@ -71,6 +73,7 @@ void SelectEdge(){
   Handle(CustomAIS_Shape) cshape=Handle(CustomAIS_Shape)::DownCast(myShape);
   if(cshape){
     if(!selectedEdge.IsNull()){
+        chosenEdge=selectedEdge;
         cshape->HighlightEdge(selectedEdge,selectionColor);
         cshape->isEdgeSelected=true;
         if(context->IsDisplayed(cshape)){
@@ -84,6 +87,9 @@ void SelectEdge(){
     return;
    }
     return;
+}
+TopoDS_Edge ChosenEdge() const{
+    return chosenEdge;
 }
 void UnSelectEdge(){
     if(!myShape){
@@ -130,6 +136,7 @@ class FaceSelector{
 private:
 Handle(AIS_Shape) myShape;
 TopoDS_Face selectedFace;
+TopoDS_Face chosenFace;
 Quantity_Color selectedColor;
 Quantity_Color faceColor;
 Handle(AIS_InteractiveContext) context;
@@ -162,12 +169,19 @@ void SetSelectedShape(Handle(AIS_Shape) shape){
     myShape=shape;
     return;
 }
+Handle(AIS_Shape) SelectedShape() const{
+    return myShape;
+}
+TopoDS_Face ChosenFace() const{
+    return chosenFace;
+}
 void SelectFace(){
     if(!myShape){
        return;
     }
     TopAbs_ShapeEnum st=myShape->Shape().ShapeType();
     if(st==4){
+        chosenFace=TopoDS::Face(myShape->Shape());
         myShape->Color(faceColor);
         myShape->SetColor(selectedColor);
         isSelected=true;
@@ -179,6 +193,7 @@ void SelectFace(){
     else if(st<4){
         Handle(CustomAIS_Shape) cshape=Handle(CustomAIS_Shape)::DownCast(myShape);
         if(cshape){
+            chosenFace=selectedFace;
             if(!selectedFace.IsNull()){
                 cshape->HighlightFace(selectedFace,selectedColor);
                 cshape->isFaceSelected=true;
@@ -368,7 +383,7 @@ Quantity_Color objectColor;
 Quantity_Color selectedColor;
 Handle(AIS_InteractiveContext) context;
 bool isSelected=false;
-
+TopoDS_Shape chosenShape=TopoDS_Shape();
 public:
 ShapeSelector(Handle(AIS_Shape) shape,const Quantity_Color& col,Handle(AIS_InteractiveContext) con){
     context=con;
@@ -380,12 +395,20 @@ ShapeSelector(Handle(AIS_Shape) shape,const Quantity_Color& col,Handle(AIS_Inter
 ShapeSelector(){
     return;
 }
+void SetSelectionColor(const Quantity_Color& color){
+    selectedColor=color;
+    return;
+}
 void SetContext(Handle(AIS_InteractiveContext) con){
     context=con;
     return;
 }
-
-
+Handle(AIS_Shape) SelectedShape() const{
+    return myShape;
+}
+TopoDS_Shape ChosenShape() const{
+    return chosenShape;
+}
 void SetSelectedShape(Handle(AIS_Shape) shape){
     myShape=shape;
     return;
@@ -396,6 +419,7 @@ void SelectShape(){
     }
     myShape->Color(objectColor);
     myShape->SetColor(selectedColor);
+    chosenShape=myShape->Shape();
     isSelected=true;
     if(context->IsDisplayed(myShape)){
         context->Redisplay(myShape,true);
@@ -485,3 +509,179 @@ void Nullify(){
 }
 
 };
+
+class CollectiveFaceSelector{
+private:
+std::vector<FaceSelector> faceselectors;
+Quantity_Color groupColor;
+Handle(AIS_InteractiveContext) context;
+std::vector<TopoDS_Face> selectedfaces;
+
+
+public:
+CollectiveFaceSelector(){
+    return;
+}
+void SetContext(Handle(AIS_InteractiveContext) con){
+    context=con;
+    return;
+}
+void SetGroupColor(const Quantity_Color& color){
+    groupColor=color;
+    return;
+}
+std::vector<TopoDS_Face> Faces() const{
+    return selectedfaces;
+}
+void AddToSelection(Handle(AIS_Shape) myShape,const TopoDS_Face& face){
+    if(!faceselectors.empty()){
+        for(auto i=0;i<faceselectors.size();i++){
+            if(faceselectors.at(i).SelectedShape()==myShape){
+                LoadMessage(QString("Duplicate Error"),QString("This object is already selected"));
+                return;
+            }
+        }
+    }
+    faceselectors.emplace_back(myShape,face,groupColor,context);
+    faceselectors.at(faceselectors.size()-1).SelectFace();
+    selectedfaces.push_back(faceselectors.at(faceselectors.size()-1).ChosenFace());
+
+    return;
+}
+void UnSelectAll(){
+    if(!faceselectors.empty()){
+        for(int i=0;i<faceselectors.size();i++){
+            faceselectors.at(i).UnSelectFace();
+        }
+    }
+    return;
+}
+void Nullify(){
+    UnSelectAll();
+    if(!faceselectors.empty()){
+        faceselectors.clear();
+    }
+    if(!selectedfaces.empty()){
+        selectedfaces.clear();
+    }
+    return;
+}
+};
+class CollectiveEdgeSelector{
+private:
+std::vector<EdgeSelector> edgeselectors;
+Quantity_Color groupColor;
+Handle(AIS_InteractiveContext) context;
+std::vector<TopoDS_Edge> selectededges;
+
+
+public:
+CollectiveEdgeSelector(){
+    return;
+}
+void SetContext(Handle(AIS_InteractiveContext) con){
+    context=con;
+    return;
+}
+void SetGroupColor(const Quantity_Color& col){
+    groupColor=col;
+    return;
+}
+std::vector<TopoDS_Edge> Edges() const{
+    return selectededges;
+}
+void AddToSelection(Handle(AIS_Shape) myshape,const TopoDS_Edge& edge){
+    if(!edgeselectors.empty()){
+        for(int i=0;i<edgeselectors.size();i++){
+            if(edgeselectors.at(i).GetSelectedShape()==myshape){
+                LoadMessage(QString(""),QString("this object has been selected"));
+                return;
+            }
+        }
+} 
+    edgeselectors.emplace_back(myshape,edge,groupColor,context);
+    edgeselectors.at(edgeselectors.size()-1).SelectEdge();
+    selectededges.push_back(edgeselectors.at(edgeselectors.size()-1).ChosenEdge());
+
+    return;
+}
+void UnSelectAll(){
+    if(!edgeselectors.empty()){
+        for(int i=0;i<edgeselectors.size();i++){
+            edgeselectors.at(i).UnSelectEdge();
+        }
+    }
+    return;
+}
+void Nullify(){
+    UnSelectAll();
+    if(!edgeselectors.empty()){
+        edgeselectors.clear();
+    }
+    if(!selectededges.empty()){
+        selectededges.clear();
+    }
+}
+
+};
+
+class CollectiveShapeSelector{
+private:
+std::vector<ShapeSelector> shapeselectors;
+Quantity_Color groupColor;
+Handle(AIS_InteractiveContext) context;
+std::vector<TopoDS_Shape> selectedshapes;
+
+
+public:
+CollectiveShapeSelector(){
+    return;
+}
+void SetContext(Handle(AIS_InteractiveContext) con){
+    context=con;
+    return;
+}
+void SetGroupColor(const Quantity_Color& color){
+    groupColor=color;
+    return;
+}
+std::vector<TopoDS_Shape> Shapes() const{
+    return selectedshapes;
+}
+void AddToSelection(Handle(AIS_Shape) myShape){
+    if(shapeselectors.empty()){
+        for(auto i=0;i<shapeselectors.size();i++){
+            if(shapeselectors.at(i).SelectedShape()==myShape){
+                LoadMessage(QString("Duplicate Error"),QString("This object is already selected"));
+                return;
+            }
+        }
+    }
+    shapeselectors.emplace_back(myShape,groupColor,context);
+    shapeselectors.at(shapeselectors.size()-1).SelectShape();
+    selectedshapes.push_back(shapeselectors.at(shapeselectors.size()-1).ChosenShape());
+
+    return;
+}
+void UnSelectAll(){
+    if(!shapeselectors.empty()){
+        for(int i=0;i<shapeselectors.size();i++){
+            shapeselectors.at(i).UnSelectShape();
+        }
+    }
+    return;
+}
+void Nullify(){
+    UnSelectAll();
+    if(!shapeselectors.empty()){
+        shapeselectors.clear();
+    }
+    if(!selectedshapes.empty()){
+        selectedshapes.clear();
+    }
+    return;
+}
+};
+
+
+

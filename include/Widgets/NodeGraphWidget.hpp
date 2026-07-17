@@ -35,10 +35,7 @@
 #include<IntegerDialog.hpp>
 using namespace INFO;
 using namespace std;
-using QtNodes::GraphicsView;
-using QtNodes::BasicGraphicsScene;
-using QtNodes::DataFlowGraphicsScene;
-using QtNodes::NodeGraphicsObject;
+using namespace QtNodes;
 //This will  be the view for the graph models,we will have to develop our model....
 //The architecture is simple,Some nodes might have the same category,we group them according to categories,
 //What is the help of NodeRegistry
@@ -73,6 +70,9 @@ SP_CMDSHAPE,
 SP_TRANSFORM,
 SP_AXIS,
 SP_MATNODE,
+SP_FLOAT,
+SP_PRIMLINE,
+SP_PRIMCIRCLE,
 SP_NULL
 };
 enum RENDER_STATE{
@@ -213,6 +213,12 @@ std::vector<int> nodeIDs;
 int IndexCounter=0;
 std::vector<size_t> IndexerIndices;
 std::vector<TopoDS_Wire> wires;
+float nodeFloatValue=0.0;
+gp_Pnt pnt; //for line starting position
+gp_Dir lineDir; //for line direction
+float LineLength=0.0f;
+gp_Ax2 circleAxis;
+float circleRadius=1.0f;
 NodeGraphWidget(QWidget* parent_widget,Handle(AIS_InteractiveContext)& context_1):GraphicsView(parent_widget),context{context_1}{
    Registry.reset(new NodeRegistry());
    //Register Model
@@ -260,6 +266,7 @@ Registry->registerModel<ConvertToAIS_ShapeNode>("Conversion");
 Registry->registerModel<IntegerInputNode>("DataTypes");
    Registry->registerModel<StringInputNode>("DataTypes");
    Registry->registerModel<SinglyWireVector>(tr("Primitives Collection"));
+   Registry->registerModel<SinglyShapeVector>(tr("Primitives Collection"));
    Registry->registerModel<DirectionNode>("Direction");
    Registry->registerModel<Point3dNode>("Points");
    Registry->registerModel<AxisNode>("Axis");
@@ -332,6 +339,14 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
    Registry->registerModel<MakeDraftAngleNode>(tr("CAD operations"));
    Registry->registerModel<MakeEvolvedNode>(tr("CAD operations"));
    Registry->registerModel<LoftNode>(tr("CAD operations"));
+   Registry->registerModel<ToWireNode>(tr("Casting"));
+   Registry->registerModel<ToEdgeNode>(tr("Casting"));
+   Registry->registerModel<ToFaceNode>(tr("Casting"));
+   Registry->registerModel<ConvertToWire>(tr("Casting"));
+   Registry->registerModel<MakeOffsetFace>(tr("CAD operations"));
+   Registry->registerModel<MakeOffsetWire>(tr("CAD operations"));
+   Registry->registerModel<PrimitiveLineNode>(tr("2D Primitive"));
+   Registry->registerModel<PrimitiveCircleNode>(tr("2D Primitive"));
    graph_model=new DataFlowGraphModel(Registry);
    scene_1=std::make_shared<DataFlowGraphicsScene>(*graph_model,this);
    GraphicsView::setScene(scene_1.get());
@@ -711,6 +726,108 @@ void mousePressEvent(QMouseEvent* event) override{
      return;
     }
     switch(shapedraw){
+    case SP_PRIMCIRCLE:{
+     auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+       if(!gscene){
+        return;
+       }
+      size_t nodeId = gscene->GraphModel()->addNode(tr("Primitive Circle")); 
+     if(nodeId!= InvalidNodeId){
+       gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
+       auto node=dynamic_cast<PrimitiveCircleNode*>(gscene->GraphModel()->Models().at(nodeId).get());
+       if(node){
+         node->SetCircle(circleAxis,circleRadius);
+        
+          std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
+          if(ngo){
+             ngo->setVisible(true);
+             ngo->update();
+              gscene->update();
+              updateSceneRect(gscene->sceneRect());
+              cout<<"Node Initiated Successfully"<<std::endl;
+              return;
+          }
+       }
+       else{
+        std::cout<<"Failed to get a transformation node"<<std::endl;
+         return;
+       }
+
+
+       }
+       else{
+        std::cout<<"Not Created Successfully"<<std::endl;
+       }
+       return; 
+    }
+    case SP_PRIMLINE:{
+    auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+       if(!gscene){
+        return;
+       }
+      size_t nodeId = gscene->GraphModel()->addNode(tr("Primitive Line")); 
+     if(nodeId!= InvalidNodeId){
+       gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
+       auto node=dynamic_cast<PrimitiveLineNode*>(gscene->GraphModel()->Models().at(nodeId).get());
+       if(node){
+         node->SetLine(lineDir,pnt,LineLength);
+        
+          std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
+          if(ngo){
+             ngo->setVisible(true);
+             ngo->update();
+              gscene->update();
+              updateSceneRect(gscene->sceneRect());
+              cout<<"Node Initiated Successfully"<<std::endl;
+              return;
+          }
+       }
+       else{
+        std::cout<<"Failed to get a transformation node"<<std::endl;
+         return;
+       }
+
+
+       }
+       else{
+        std::cout<<"Not Created Successfully"<<std::endl;
+       }
+       return;
+    }
+    case SP_FLOAT:{
+     auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+       if(!gscene){
+        return;
+       }
+      size_t nodeId = gscene->GraphModel()->addNode(tr("Float")); 
+     if(nodeId!= InvalidNodeId){
+       gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
+       auto node=dynamic_cast<FloatNode*>(gscene->GraphModel()->Models().at(nodeId).get());
+       if(node){
+         node->SetData(nodeFloatValue);
+        
+          std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
+          if(ngo){
+             ngo->setVisible(true);
+             ngo->update();
+              gscene->update();
+              updateSceneRect(gscene->sceneRect());
+              cout<<"Node Initiated Successfully"<<std::endl;
+              return;
+          }
+       }
+       else{
+        std::cout<<"Failed to get a transformation node"<<std::endl;
+         return;
+       }
+
+
+       }
+       else{
+        std::cout<<"Not Created Successfully"<<std::endl;
+       }
+       return;
+      }
     case SP_WIRES:{
      auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
        if(!gscene){
@@ -1422,11 +1539,13 @@ void OnDeleteNode(const NodeId& nodeId){
 }
 void OnDeleteHandler(){
    if(indexnode){
-    if(selectedNode){
-        IndexerIndices.push_back(selectedNode->nodeId());
-    }
+        IndexerIndices.push_back(indexnode->index());
+       if(selectedNode){
+        OnDeleteNode(selectedNode->nodeId());
+       }
+       selectedNode=nullptr;
     cout<<"Successful Deletion For Index Node"<<"\n";
-    selectedNode=nullptr;
+    
   }
   if(selectedNode){
     OnDeleteNode(selectedNode->nodeId());

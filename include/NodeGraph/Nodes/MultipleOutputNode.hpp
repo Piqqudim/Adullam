@@ -56,13 +56,12 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         if(!input_shape.lock()->GetValue(i).Data().IsSame(TopoDS_Shape())){
         std::cout<<input_shape.lock()->Data()[i].index()<<"\n";    
         customShape=new CustomAIS_Shape(input_shape.lock()->Data()[i].index(),input_shape.lock()->Data()[i].Data());
-        if(input_shape.lock()->Data()[i].HasMaterial()){
+        if(customShape->Shape().ShapeType()<=TopAbs_FACE){
             customShape->SetMaterialAspect(input_shape.lock()->Data()[i].aspect());
-            customShape->SetColor(input_shape.lock()->Data()[i].aspect().DiffuseColor());
+            
         }
         else{
-            customShape->SetVisualAspect(input_shape.lock()->Data()[i].aspect().DiffuseColor());
-
+            customShape->SetColor(input_shape.lock()->Data()[i].aspect().DiffuseColor());
         }
   
         shapes.push_back(customShape);
