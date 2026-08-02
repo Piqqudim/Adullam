@@ -9,6 +9,7 @@
 #include<SurfaceUtility.hpp>
 #include<BooleanNodeData.hpp>
 #include<BRepOffsetAPI_DraftAngle.hxx>
+#include<Standard_Failure.hxx>   
 #include<Draft_ErrorStatus.hxx>
 #include<memory>
 using namespace std;
@@ -174,7 +175,13 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
      gp_Pnt centre=SURFACE::GetSurfaceCentre(inputFace);
     gp_Pln plane(centre,dir);
     draftmaker.Add(inputFace,dir,ang,plane,isFlag);
+    try{
     draftmaker.Build();
+    }
+    catch(const Standard_Failure& failure){
+      LoadMessage(tr("Draft Error"),DraftError::DraftErrorToString(draftmaker.Status()));
+      return;
+    }
     if(draftmaker.IsDone()){
         outputShape=draftmaker.Shape();
     }
@@ -204,7 +211,13 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
      gp_Pnt centre=SURFACE::GetSurfaceCentre(inputFace);
     gp_Pln plane(centre,dir);
     draftmaker.Add(inputFace,dir,ang,plane,isFlag);
+    try{
     draftmaker.Build();
+    }
+    catch(const Standard_Failure& failure){
+      LoadMessage(tr("Draft Error"),DraftError::DraftErrorToString(draftmaker.Status()));
+      return;
+    }
     if(draftmaker.IsDone()){
         outputShape=draftmaker.Shape();
     }

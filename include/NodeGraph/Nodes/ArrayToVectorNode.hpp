@@ -75,7 +75,6 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
              if(InputShape_1.lock()){
               
               for(int i=0;i<InputShape_1.lock()->Size();i++){
-                 if(!InputShape_1.lock()->GetValueAt(i).Data().IsSame(TopoDS_Shape()))
                   shapearray[i]=InputShape_1.lock()->GetValueAt(i);
                  }
                  
@@ -88,7 +87,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
           if(InputShape_2.lock()){
             int j=InputShape_2.lock()->Size();
              for(int i=0;i<InputShape_2.lock()->Size();i++){
-                 if(!InputShape_2.lock()->GetValueAt(i).Data().IsSame(TopoDS_Shape()))
+                 
                    shapearray[i+j]=InputShape_2.lock()->GetValueAt(i);
                  }
           }
@@ -101,10 +100,9 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
             outputData.clear();
         }
         for(int i=0;i<shapearray.size();i++){
-            if(!shapearray.at(i).Data().IsSame(TopoDS_Shape())){
                 cout<<i<<"'s Shape Index:"<<shapearray.at(i).index()<<"\n";
                 outputData.emplace_back(shapearray.at(i).aspect(),shapearray.at(i).Data(),shapearray.at(i).index());
-            }
+            
         }
        output_shape->SetData(outputData);
     }
@@ -114,10 +112,9 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
             outputData.clear();
         }
         for(int i=0;i<shapearray.size();i++){
-            if(!shapearray.at(i).Data().IsSame(TopoDS_Shape())){
                  cout<<i<<"'s Shape Index:"<<shapearray.at(i).index()<<"\n";
                 outputData.emplace_back(shapearray.at(i).aspect(),shapearray.at(i).Data(),shapearray.at(i).index());
-            }
+            
         }
       output_shape->SetData(outputData);
     }

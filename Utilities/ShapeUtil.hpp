@@ -32,6 +32,8 @@
 #include<gp_Ax2.hxx>
 #include<Precision.hxx>
 #include<cmath>
+#include<CurveParam.hpp>
+#include<GC_MakeArcOfCircle.hxx>
 //Shape Type
 //0 -> COMPOUND
 //1 -> COMPSOLID
@@ -231,6 +233,34 @@ inline TopoDS_Shape Revolve(const TopoDS_Shape& shape,const gp_Ax2& dir,const do
 }
 inline TopoDS_Shape FullRevolve(const TopoDS_Shape& shape,const gp_Ax2& dir){
    return BRepPrimAPI_MakeRevol(shape,dir.Axis()).Shape();
+}
+inline TopoDS_Edge CreateCircleArc(const gp_Pnt& spoint,const gp_Pnt& epoint,const gp_Dir& c_dir,const gp_Pnt& cpoint,const double& pradius){
+   Handle(Geom_Circle) geom_circle=new Geom_Circle(gp_Ax2(cpoint,c_dir),radius);
+   if(!geom_circle){
+      return TopoDS_Edge();
+   }
+   GC_MakeArcOfCircle arcmaker(geom_circle->Circ(),spoint,cpoint);
+   if(!arcmaker.Value()){
+      return TopoDS_Edge();
+   }
+   BRepBuilderAPI_MakeEdge edgemaker;
+   edgemaker.Init(arcmaker.Value());
+   if(edgemaker.IsDone()){
+      return edgemaker.Edge();
+   }
+   return TopoDS_Edge();   
+}
+inline TopoDS_Edge CreateLine(const gp_Pnt& pnt,const gp_Dir& dir,const double& length){
+   Handle(Geom_Line) geom_line=new Geom_Line(pnt,dir);
+   if(!geom_line){
+      return TopoDS_Edge();
+   }
+   BRepBuilderAPI_MakeEdge edgemaker;
+   edgemaker.Init(geom_line,0,length);
+   if(edgemaker.IsDone()){
+      return edgemaker.Edge();
+   }
+   return TopoDS_Edge();
 }
 }
 

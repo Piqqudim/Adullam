@@ -98,32 +98,25 @@ class SceneSettingWidget:public QWidget{
       GridSection=new Section(tr("Grid"),2,this);
       GridVlayout=new QVBoxLayout;
       GridVlayout->setAlignment(Qt::AlignLeft|Qt::AlignTop);
-      SetXEdit=new DoubleEdit(GridSection,QString::number(0.0),8);
-      SetYEdit=new DoubleEdit(GridSection,QString::number(0.0),8);
-      SpaceEdit=new DoubleEdit(GridSection,QString::number(0),8);
+     
       ShowGridCheckBox=new QCheckBox(tr("Show Grid"),GridSection);
       ShowGridCheckBox->setCheckable(true);
       ShowGridCheckBox->setChecked(true);
       gridFormLayout=new QFormLayout;
-      gridFormLayout->addRow(tr("X"),SetXEdit);
-      gridFormLayout->addRow(tr("Y"),SetYEdit);
-      gridFormLayout->addRow(tr("Grid Space"),SpaceEdit);
-      UseWindowCheckBox=new QCheckBox(tr("Use Window Size"),GridSection);
+      
       GridVlayout->addWidget(ShowGridCheckBox);
-      GridVlayout->addWidget(UseWindowCheckBox);
-      GridVlayout->addLayout(gridFormLayout);
       GridSection->setContentLayout(*GridVlayout);
       //End of gridSection
 
      //PlaneSection
-      PlaneSection=new Section(tr("Plane"),2,this);
+     /* PlaneSection=new Section(tr("Plane"),2,this);
       planeFormLayout=new QFormLayout;
       SizeXEdit=new DoubleEdit(PlaneSection,QString::number(0.0),8);
       SizeYEdit=new DoubleEdit(PlaneSection,QString::number(0.0),8);
       planeFormLayout->addRow(tr("Size in X direction:"),SizeXEdit);
       planeFormLayout->addRow(tr("Size in Y direction:"),SizeYEdit);    
       PlaneSection->setContentLayout(*planeFormLayout);
-      //End of PlaneSection 
+      *///End of PlaneSection 
     //This is highlight section
     hilisection.reset(new SelectedHighlightSection(tr("Color Aspect"),2,this,80));
     shapetypepane=std::make_unique<ShapeTypePane>(this);
@@ -131,7 +124,6 @@ class SceneSettingWidget:public QWidget{
     ScLayout->addWidget(SelFilterSection);
     ScLayout->addWidget(DispModeSection);
     ScLayout->addWidget(GridSection);
-    ScLayout->addWidget(PlaneSection);
     ScLayout->addWidget(hilisection.get());
     ScLayout->addWidget(shapetypepane.get());
     ScLayout->addWidget(viewsection.get());

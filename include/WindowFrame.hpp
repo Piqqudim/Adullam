@@ -33,6 +33,7 @@
 #include<QtGui/QClipboard>
 #include<iostream>
 #include<EdgeInfoWidget.hpp>
+#include<StyleSheetEditor.hpp>
 #include<LoggerWidget.hpp>
 #include<LinePresentationWidget.hpp>
 
@@ -76,6 +77,7 @@ class Window_Frame:public QMainWindow{
     std::unique_ptr<ObjectPresentationWidget> objprswidget;
     std::unique_ptr<LoggerWidget> logwidget=std::make_unique<LoggerWidget>();
     std::unique_ptr<ObjectInfoWidget> objinfowidget;  //this will show the properties of the object to display
+    std::unique_ptr<StyleSheetEditor> stylesheeteditor=make_unique<StyleSheetEditor>();
     Handle(CustomAIS_Shape) shape=new CustomAIS_Shape(DrawCube(80));
     std::unique_ptr<SurfaceInfoWidget> surface_widget=std::make_unique<SurfaceInfoWidget>();
     SurfaceInfo sfaceinfo;
@@ -1391,9 +1393,9 @@ void onHandleEmittedFolder(QString Folder){
 }
 void onWriteFileToPath(const QString& str){
   
-  if(currentWorkingDirectory==tr("")){
+  if(currentWorkingDirectory.isEmpty()){
     OnOpenCurrentFolder();
-    if(currentWorkingDirectory!=tr("")){
+    if(!currentWorkingDirectory.isEmpty()){
       QModelIndex index=fileSystemWidget->currentIndex();
       if(!index.isValid()){ 
       index=fileSystemWidget->Index(currentWorkingDirectory);
@@ -1487,7 +1489,7 @@ void OnOpenNCAD(const QString& str){
   return;
 }
 void OnCloseFolder(){ //to close a folder
-  if(currentWorkingDirectory==tr("")){
+  if(currentWorkingDirectory.isEmpty()){
     cout<<"No current Working Directory"<<"\n";
     return;
   }
@@ -2011,6 +2013,9 @@ void OnHandleEmittedIndexToNullifyShape(const int& index){
     std::cout<<"Negative Index "<<", Cannot Search"<<"\n";
     return;
   }
+  if(centralwidget_1->Shapes.find(index)==centralwidget_1->Shapes.end()){
+     return;
+  }
   centralwidget_1->Shapes.at(index)->SetShape(TopoDS_Shape());
   centralwidget_1->context->Redisplay(centralwidget_1->Shapes.at(index),false);
   centralwidget_1->view->Redraw();
@@ -2020,6 +2025,9 @@ void OnHandleEmittedIndexToNullifyShape(const int& index){
     if(index==-1){
        return;
     }
+    if(centralwidget_1->Shapes.find(index)==centralwidget_1->Shapes.end()){
+     return;
+  }
     Handle(CustomAIS_Shape) cshape=centralwidget_1->Shapes.at(index);
 
     centralwidget_1->context->SetLocation(cshape,TopLoc_Location(gp_Trsf()));
@@ -2040,9 +2048,24 @@ void OnHandleEmittedIndexToNullifyShape(const int& index){
     if(index==-1){
       return;
     }
+    if(centralwidget_1->Shapes.find(index)==centralwidget_1->Shapes.end()){
+     return;
+  }
     centralwidget_1->context->Remove(centralwidget_1->Shapes.at(index),true);
     centralwidget_1->Shapes.erase(index);
     return;
+  }
+  case INDEX_DISPLAYNULL:{
+    if(index==-1){
+      LoadMessage(tr("Index not found"),tr("Index Not Found"));
+      return;
+    }
+    if(centralwidget_1->Shapes.find(index)==centralwidget_1->Shapes.end()){
+     return;
+  }
+    centralwidget_1->Shapes.at(index)->dt=DP_NULL;
+    logwidget->append(tr("Shape Changed to Display Null"));
+    break;
   }
   default:
     return;
@@ -2276,9 +2299,96 @@ void openSTLFile(){
   if(filename.isEmpty()){
     return;
 }
+  StlAPI_Reader reader;
+  if(reader.Read(ReadShape,filename.toStdString().c_str())==false){
+     LoadMessage(tr(""),tr("Failed to read File"));
+     return;
+  };
+  if(ReadShape.IsSame(TopoDS_Shape())){
+    LoadMessage(tr(""),tr("The Read Shape is empty"));
+    return;
+  }
+  centralwidget_1->DisplayObjectFromSuccessfullRead(ReadShape);
+  ReadShape=TopoDS_Shape();
+
   return;
 }
+void SaveStepFile(){
+  return;
+}
+void OnActivateStyleSheet(bool value){
+  if(value){
+  int index=centralstackwidget->indexOf(stylesheeteditor.get());
+  if(index==-1){
+    centralstackwidget->addWidget(stylesheeteditor.get());
+    centralstackwidget->setCurrentWidget(stylesheeteditor.get());
+  }
+  else{
+    if(centralstackwidget->currentWidget()!=stylesheeteditor.get()){
+    centralstackwidget->setCurrentWidget(stylesheeteditor.get());
+    }
+  }
+  }
+  else{
+  int index=centralstackwidget->indexOf(Splitter.get());
+    if(index==-1){
+       return;
+    }
+    else{
+      if(centralstackwidget->currentWidget()!=Splitter.get()){
+        centralstackwidget->setCurrentWidget(Splitter.get());
+      }
 
+    }
+  }
+    return;
+}
+void LoadDefaultViewStyle(bool value){
+  if(value){
+  QJsonDocument jsondoc(nodewidget->GetDefaultViewStyle());
+  stylesheeteditor->LoadFile(jsondoc.toJson().toStdString().c_str());
+  stylesheeteditor->SetToBoolValue(true,false,false);
+  stylesheeteditor->SetStyleEditMode(SEM_VIEW);
+  }
+  return;
+}
+void LoadDefaultConnStyle(bool value){
+  if(value){
+  QJsonDocument jsondoc(nodewidget->GetDefaultConnStyle());
+  stylesheeteditor->LoadFile(jsondoc.toJson().toStdString().c_str());
+  stylesheeteditor->SetToBoolValue(false,true,false);
+  stylesheeteditor->SetStyleEditMode(SEM_CONN);
+  }
+  return;
+}
+void LoadDefaultNodeStyle(bool value){
+  if(value){
+  QJsonDocument jsondoc(nodewidget->GetDefaultNodeStyle());
+  stylesheeteditor->LoadFile(jsondoc.toJson().toStdString().c_str());
+  stylesheeteditor->SetToBoolValue(false,false,true);
+  stylesheeteditor->SetStyleEditMode(SEM_NODE);
+  }
+  return;
+}
+void OnHandleViewStyle(const QJsonObject& object){
+  nodewidget->OnSetViewStyle(object);
+  return;
+}
+void OnHandleConnectionStyle(const QJsonObject& object){
+  nodewidget->OnSetConnectionStyle(object);
+  return;
+}
+void OnHandleNodeStyle(const QJsonObject& object){
+  nodewidget->OnSetNodeStyle(object);
+  
+  return;
+}
+void OnSetEdgeArrayBool(){
+  nodewidget->chosenWire=centralwidget_1->selWire;
+  nodewidget->shapedraw=SP_EDGEARRAY;
+  
+  return;
+}
 };
 
 

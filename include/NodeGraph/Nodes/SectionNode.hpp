@@ -13,9 +13,16 @@ class SectionNode:public NodeDelegateModel,public NodeInitializer{
   TopoDS_Shape outputShape;
   TopoDS_Shape shape1,shape2;
   std::shared_ptr<ShapeNodeData> shape;
+  bool isPortASet=false;
+  bool isPortBSet=false;
   public:
   SectionNode(){
 
+  }
+ void SetToFalse() override{
+    isPortASet=false;
+    isPortBSet=false;
+    return;
   }
   QString caption() const override{
     return tr("Section Node");
@@ -71,6 +78,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         case 0:{
             inputShape1=std::dynamic_pointer_cast<ShapeNodeData>(data);
             if(inputShape1.lock()){
+                isPortASet=true;
               shape1=inputShape1.lock()->Data();
               break;
             }
@@ -78,12 +86,18 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
        case 1:{
         inputShape2=std::dynamic_pointer_cast<ShapeNodeData>(data);
         if(inputShape2.lock()){
+            isPortBSet=true;
             shape2=inputShape2.lock()->Data();
         }
        }
     }
-    if(!shape1.IsSame(TopoDS_Shape()) && !shape2.IsSame(TopoDS_Shape())){
         if(shape){
+            if(isPortASet==false){
+                return;
+            }
+            if(isPortBSet==false){
+                return;
+            }
             BRepAlgoAPI_Section section(shape1,shape2);
             section.Build();
             if(section.IsDone()){
@@ -98,6 +112,12 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
             }
         }
         else{
+             if(isPortASet==false){
+                return;
+            }
+            if(isPortBSet==false){
+                return;
+            }
             shape=make_shared<ShapeNodeData>(tr(""));
              BRepAlgoAPI_Section section(shape1,shape2);
             section.Build();
@@ -112,7 +132,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
                 return;
             }
         }
-    }
+    
     return;
 }
 QWidget* embeddedWidget() override{

@@ -13,9 +13,16 @@ class CommonNode:public NodeDelegateModel,public NodeInitializer{
   TopoDS_Shape outputShape;
   TopoDS_Shape shape1,shape2;
   std::shared_ptr<ShapeNodeData> shape;
+  bool isPortASet=false;
+  bool isPortBSet=false;
   public:
   CommonNode(){
 
+  }
+void SetToFalse() override{
+    isPortASet=false;
+    isPortBSet=false;
+    return;
   }
   QString caption() const override{
     return tr("Common Node");
@@ -72,6 +79,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
             inputShape1=std::dynamic_pointer_cast<ShapeNodeData>(data);
             if(inputShape1.lock()){
               shape1=inputShape1.lock()->Data();
+              isPortASet=true;
               break;
             }
         }
@@ -79,11 +87,18 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         inputShape2=std::dynamic_pointer_cast<ShapeNodeData>(data);
         if(inputShape2.lock()){
             shape2=inputShape2.lock()->Data();
+            isPortBSet=true;
         }
        }
     }
-    if(!shape1.IsSame(TopoDS_Shape()) && !shape2.IsSame(TopoDS_Shape())){
+    
         if(shape){
+             if(isPortASet==false){
+                return;
+            }
+            if(isPortBSet==false){
+                return;
+            }
             BRepAlgoAPI_Common common(shape1,shape2);
             common.Build();
             if(common.IsDone()){
@@ -98,6 +113,12 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
             }
         }
         else{
+            if(isPortASet==false){
+                return;
+             }
+             if(isPortBSet==false){
+                return;
+             }
             shape=make_shared<ShapeNodeData>(tr(""));
              BRepAlgoAPI_Common common(shape1,shape2);
             common.Build();
@@ -112,7 +133,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
                 return;
             }
         }
-    }
+    
     return;
 }
 QWidget* embeddedWidget() override{

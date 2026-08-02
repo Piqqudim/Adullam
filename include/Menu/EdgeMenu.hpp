@@ -20,6 +20,7 @@ std::unique_ptr<QAction> nullify=std::make_unique<QAction>(tr("Nullify Curve Rep
 std::unique_ptr<QAction> update=std::make_unique<QAction>(tr("Update With Transform"));
 std::unique_ptr<QAction> alignWithDir=std::make_unique<QAction>(tr("Align With Direction"));
 std::unique_ptr<QAction> convertwireAction=std::make_unique<QAction>(tr("Convert To Wire"));
+std::unique_ptr<QAction> endEdgeMenu=std::make_unique<QAction>(tr("End"));
 EdgeMenu():QMenu(){
     showInfoAction=std::make_unique<QAction>(tr("Show Info"),nullptr);
     convertAction=std::make_unique<QAction>(tr("Convert To Edge Node"),nullptr);
@@ -47,6 +48,7 @@ EdgeMenu():QMenu(){
     addAction(convertToFaceAction.get());
     addAction(convertToWireAction.get());
     addAction(convertwireAction.get());
+    addAction(endEdgeMenu.get());
     addAction(filletAction.get());
     
     return;
@@ -133,9 +135,6 @@ unique_ptr<QAction> chooseVertex;
 unique_ptr<QAction> selectRadius;
 unique_ptr<QAction> buildAction=std::make_unique<QAction>(tr("Build"));
 unique_ptr<QAction> endFilletOps=make_unique<QAction>(tr("End Fillet Operation"));
-std::unique_ptr<QAction> XOYplane=make_unique<QAction>(tr("XOY"));
-std::unique_ptr<QAction> YOZplane=make_unique<QAction>(tr("YOZ"));
-std::unique_ptr<QAction> ZOXplane=std::make_unique<QAction>(tr("ZOX"));
 FilletMenu(){
   chooseFirstEdge=make_unique<QAction>(tr("First Edge"));
   chooseFirstEdge->setCheckable(true);
@@ -144,17 +143,12 @@ FilletMenu(){
   chooseVertex=std::make_unique<QAction>(tr("Choose Vertex"));
   chooseVertex->setCheckable(true);
   selectRadius=make_unique<QAction>(tr("Select Radius"));
-  XOYplane->setCheckable(true);
-  YOZplane->setCheckable(true);
-  ZOXplane->setCheckable(true);
+  
   addAction(chooseFirstEdge.get());
   addAction(chooseSecondEdge.get());
   addAction(chooseVertex.get());
   addAction(selectRadius.get());
   addAction(buildAction.get());
-  addAction(XOYplane.get());
-  addAction(YOZplane.get());
-  addAction(ZOXplane.get());
   addAction(endFilletOps.get());
   
   return;
@@ -165,13 +159,7 @@ void SetBoolValues(const bool& value_1,const bool& value_2,const bool& value_3){
   chooseVertex->setChecked(value_3);
   return;
 }
-void SetPlaneBool(bool value,bool value_1,bool value_2){
-  XOYplane->setChecked(value);
-  YOZplane->setChecked(value_1);
-  ZOXplane->setChecked(value_2);
-  return;
-  
-}
+
 };
 
 class TrimMenu:public QMenu{

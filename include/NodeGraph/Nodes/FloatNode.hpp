@@ -21,10 +21,23 @@ QJsonObject save() const override{
 }
 void load(const QJsonObject& object) override{
     Data=object["Value"].toDouble(1.0);
-   SetData(Data);
+   SetFloatData(Data);
     return;
 }
-
+void UpdateData(){
+    emit dataUpdated(0);
+}
+void SetFloatData(const float& d){
+    Data=d;
+    if(outputData){
+        outputData->SetData(d);
+    }
+    else{
+        outputData=std::make_shared<FloatNodeData>(tr(""));
+        outputData->SetData(d);
+    }
+    return;
+}
 void SetData(const float& d){
     Data=d;
     if(outputData){

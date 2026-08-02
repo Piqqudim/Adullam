@@ -80,9 +80,6 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
      connect(nodewidget.get(),&NodeGraphWidget::CreateFloatNodeWidget,this,&Window_Frame::OnCreateFnodeWidget);
      connect(sceneSettingWidget->ShowGridCheckBox,&QCheckBox::toggled,this,&Window_Frame::OnToggleShowGrid);
      connect(nodewidget.get(),&NodeGraphWidget::SendMessage,this,&Window_Frame::DisplayText);   
-     connect(sceneSettingWidget->SetXEdit,&DoubleEdit::GetValue,this,&Window_Frame::OnSetGridX);
-     connect(sceneSettingWidget->SetYEdit,&DoubleEdit::GetValue,this,&Window_Frame::OnSetGridY);
-     connect(sceneSettingWidget->SpaceEdit,&DoubleEdit::GetValue,this,&Window_Frame::OnSetGridSpacing);
      connect(centralwidget_1.get(),&DrawingCentralWidget::OnOpenSceneSettings,this,&Window_Frame::OnShowSceneSettings);
      connect(sceneSettingWidget->boundboxr_button.get(),&QRadioButton::toggled,this,&Window_Frame::OnDrawBoundBox);
      connect(sceneSettingWidget->viewsection->panCheckBox.get(),&QCheckBox::toggled,this,&Window_Frame::OnHandlePanning);
@@ -221,7 +218,17 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
    connect(centralwidget_1.get(),&DrawingCentralWidget::EmitLineValue,this,&Window_Frame::OnHandlePrimLine);
    connect(centralwidget_1.get(),&DrawingCentralWidget::EmitCircleValue,this,&Window_Frame::OnHandlePrimCircle);
    connect(FileActionMenu->openStepFile.get(),&QAction::triggered,this,&Window_Frame::OpenStpFile);
-   //connect()
+   connect(editorMenu->enableStyleEditor.get(),&QAction::toggled,this,&Window_Frame::OnActivateStyleSheet);
+   connect(stylesheeteditor->showViewStyleTemplate.get(),&QAction::toggled,this,&Window_Frame::LoadDefaultViewStyle);
+   connect(stylesheeteditor->showConnStyleTemplate.get(),&QAction::toggled,this,&Window_Frame::LoadDefaultConnStyle);
+   connect(stylesheeteditor->showNodeStyleTemplate.get(),&QAction::toggled,this,&Window_Frame::LoadDefaultNodeStyle);
+   connect(stylesheeteditor.get(),&StyleSheetEditor::EmitViewStyle,this,&Window_Frame::OnHandleViewStyle);
+   connect(stylesheeteditor.get(),&StyleSheetEditor::EmitConnectionStyle,this,&Window_Frame::OnHandleConnectionStyle);
+   connect(stylesheeteditor.get(),&StyleSheetEditor::EmitNodeStyle,this,&Window_Frame::OnHandleNodeStyle);
+   connect(FileActionMenu->openIGESFile.get(),&QAction::triggered,this,&Window_Frame::OpenIgesFile);
+   connect(FileActionMenu->openBRepFile.get(),&QAction::triggered,this,&Window_Frame::OpenBRepFile);
+   connect(FileActionMenu->openSTLFile.get(),&QAction::triggered,this,&Window_Frame::openSTLFile);
+   connect(centralwidget_1.get(),&DrawingCentralWidget::EmitEdgeColl,this,&Window_Frame::OnSetEdgeArrayBool);
    return;
 
 }  

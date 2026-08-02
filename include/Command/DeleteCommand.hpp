@@ -10,12 +10,12 @@
 //for Redo: it will do the deletion, provided the object exists
 class DeleteCommand:public QUndoCommand{
 private:
-Handle(CustomAIS_Shape) PreviousShape;
+Handle(AIS_Shape) PreviousShape;
 std::reference_wrapper<Handle(AIS_InteractiveContext)> ref_context;
 int currentselectionmode=-1;
 int currShadingMode=-1;
 public:
-DeleteCommand(const Handle(CustomAIS_Shape)& shape,Handle(AIS_InteractiveContext)& co,const int& selcode,const int& cshmode):ref_context{co}{
+DeleteCommand(const Handle(AIS_Shape)& shape,Handle(AIS_InteractiveContext)& co,const int& selcode,const int& cshmode):ref_context{co}{
     PreviousShape=shape;
     
     currentselectionmode=selcode;

@@ -53,19 +53,19 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
     std::vector<Handle(CustomAIS_Shape)> shapes{};
     shapes.reserve(input_shape.lock()->Size()+1); //to avoid reallocation
     for(int i=0;i<input_shape.lock()->Size();i++){
-        if(!input_shape.lock()->GetValue(i).Data().IsSame(TopoDS_Shape())){
         std::cout<<input_shape.lock()->Data()[i].index()<<"\n";    
         customShape=new CustomAIS_Shape(input_shape.lock()->Data()[i].index(),input_shape.lock()->Data()[i].Data());
+        customShape->dt=input_shape.lock()->Data()[i].displayType();
         if(customShape->Shape().ShapeType()<=TopAbs_FACE){
             customShape->SetMaterialAspect(input_shape.lock()->Data()[i].aspect());
-            
+            customShape->SetColor(input_shape.lock()->Data()[i].aspect().DiffuseColor());
         }
         else{
             customShape->SetColor(input_shape.lock()->Data()[i].aspect().DiffuseColor());
         }
   
         shapes.push_back(customShape);
-    }
+    
     }
     emit OnSendShapes(shapes);
     std::cout<<"Shapes Emitted"<<endl;

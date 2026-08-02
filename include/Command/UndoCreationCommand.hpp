@@ -8,10 +8,10 @@
 // for every created shape,we can undo it's creation,just like deleting the shape
 class UndoCreationCommand:public QUndoCommand{
 private:
-Handle(CustomAIS_Shape) DrawnShape;  //The drawn shape
+Handle(AIS_Shape) DrawnShape;  //The drawn shape
 std::reference_wrapper<Handle(AIS_InteractiveContext)> ref_context; //reference to the current context
 public:
-UndoCreationCommand(Handle(AIS_InteractiveContext)& co,const Handle(CustomAIS_Shape)& myshape):ref_context{co}{
+UndoCreationCommand(Handle(AIS_InteractiveContext)& co, Handle(AIS_Shape) myshape):ref_context{co}{
 DrawnShape=myshape;
 }
 
@@ -39,6 +39,7 @@ void redo() override{
         ref_context.get()->Redisplay(DrawnShape,true);
         return;
     }
+    return;
 }
 };
 

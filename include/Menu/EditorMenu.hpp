@@ -10,6 +10,7 @@ std::unique_ptr<QAction> enableNodeGraph;
 std::unique_ptr<QAction> enableFileSystem;
 std::unique_ptr<QAction> enableChildCADView;
 std::unique_ptr<QAction>enableChildNodeGraph;
+std::unique_ptr<QAction> enableStyleEditor;
 std::unique_ptr<QAction> enableConsoleLog;
 std::unique_ptr<QAction> themeSettings;
 
@@ -20,17 +21,20 @@ EditorMenu():QMenu(){
     enableChildCADView=make_unique<QAction>(tr("Other View"),nullptr);
     enableChildNodeGraph=make_unique<QAction>(tr("Other Node Graph"),nullptr);
     enableConsoleLog=std::make_unique<QAction>(tr("Console Log"));
+    enableStyleEditor=std::make_unique<QAction>(tr("Style Editor"));
     themeSettings=std::make_unique<QAction>(tr("Theme"));
     enableCADView->setCheckable(true);
     enableNodeGraph->setCheckable(true);
     enableFileSystem->setCheckable(true);
     enableChildCADView->setCheckable(true);
     enableChildNodeGraph->setCheckable(true);
+    enableStyleEditor->setCheckable(true);
     enableConsoleLog->setCheckable(true);
     addAction(enableCADView.get());
     addAction(enableNodeGraph.get());
     addAction(enableFileSystem.get());
     addAction(enableChildCADView.get());
+    addAction(enableStyleEditor.get());
     addAction(enableChildNodeGraph.get());
     addAction(enableConsoleLog.get());
     addAction(themeSettings.get());

@@ -57,8 +57,16 @@ public:
 
     NodeStyle const &nodeStyle() const;
     void setNodeStyle(NodeStyle const &style);
-
+    //set nodeId
+    void setNodeId(const int& id){
+      nodeId=id;
+        return;
+     }
+   int NodeId() const{
+    return nodeId;
+     }
     virtual void setInData(std::shared_ptr<NodeData> nodeData, PortIndex const portIndex) = 0;
+    
 
     virtual std::shared_ptr<NodeData> outData(PortIndex const port) = 0;
 
@@ -74,11 +82,7 @@ public:
      */
     virtual QWidget *embeddedWidget() = 0;
     
-     void SetDisplayWidget(QWidget* p_displaywidget){
-         DisplayWidget=p_displaywidget;
-         return;
-      }
-    QWidget* getDisplayWidget() {return DisplayWidget;}
+     
     virtual bool resizable() const { return false; }
 
 public Q_SLOTS:
@@ -90,7 +94,7 @@ public Q_SLOTS:
 Q_SIGNALS:
     /// Triggers the updates in the nodes downstream.
     void dataUpdated(PortIndex const index);
-
+    void EmitStringContent(const QString& content);
     /// Triggers the propagation of the empty data downstream.
     void dataInvalidated(PortIndex const index);
 
@@ -123,7 +127,8 @@ Q_SIGNALS:
 
 private:
     NodeStyle _nodeStyle;
-    QWidget* DisplayWidget=nullptr;
+    int nodeId=-1; //invalid id
+    
 };
 
 } // namespace QtNodes

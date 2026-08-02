@@ -42,7 +42,7 @@ SelectedHighlightSection(const QString& pSec_Name,const size_t& psz,QWidget* ppa
     
 
     myFaceColor->setFixedSize(30,30);
-    myLineColorLabel.reset(new QLabel(tr("Line Selection Color:")));
+    myLineColorLabel.reset(new QLabel(tr("Line Color:")));
     myLineColor.reset(new ColorPane(this));
     myLineColor->setFixedSize(30,30);
     myFaceColorPane->setFixedSize(30,30);

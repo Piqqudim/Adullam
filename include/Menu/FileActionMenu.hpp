@@ -43,9 +43,9 @@ FileMenu():QMenu(){
  autoSave=std::make_unique<QAction>(tr("Auto Save"),nullptr);
  openIGESFile=std::make_unique<QAction>(tr("Open IGES file"));
  openStepFile=std::make_unique<QAction>(tr("Open .step/.stp file"));
- saveSTEPFile=std::make_unique<QAction>(tr("save .step/.stp file"));
+ saveSTEPFile=std::make_unique<QAction>(tr("Save .step/.stp file"));
  openBRepFile=std::make_unique<QAction>(tr("Open .brep file"));
- saveBRepFile=std::make_unique<QAction>(tr("save .brep file"));
+ saveBRepFile=std::make_unique<QAction>(tr("Save .brep file"));
  openGltfFile=std::make_unique<QAction>(tr("Open .gltf file"));
  saveGltfFile=std::make_unique<QAction>(tr("Save .gltf file"));
  openObjFile=std::make_unique<QAction>(tr("Open .Obj file"));
@@ -59,8 +59,7 @@ FileMenu():QMenu(){
  saveMenu->addAction(saveIGESModel.get());
  saveMenu->addAction(saveSTEPFile.get());
  saveMenu->addAction(saveBRepFile.get());
- saveMenu->addAction(saveObjFile.get());
- saveMenu->addAction(saveGltfFile.get());
+
  saveMenu->addAction(saveSTLFile.get());
 
  openMenu=std::make_unique<QMenu>();
@@ -69,8 +68,6 @@ FileMenu():QMenu(){
  openMenu->addAction(openIGESFile.get());
  openMenu->addAction(openStepFile.get());
  openMenu->addAction(openBRepFile.get());
- openMenu->addAction(openGltfFile.get());
- openMenu->addAction(openObjFile.get());
  openMenu->addAction(openSTLFile.get());
  addAction(createNewFolder.get());
  addAction(createNewFile.get());

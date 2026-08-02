@@ -122,7 +122,7 @@ private Q_SLOTS:
 private:
     std::shared_ptr<NodeDelegateModelRegistry> _registry;
 
-    NodeId _nextNodeId=0;
+    NodeId _nextNodeId;
 
     std::unordered_map<NodeId, std::shared_ptr<NodeDelegateModel>> _models;
 

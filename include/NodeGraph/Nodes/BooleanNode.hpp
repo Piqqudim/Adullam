@@ -33,7 +33,6 @@ QJsonObject save() const override{
 }
 void load(const QJsonObject& object) override{
     InputValue=object["Value"].toBool();
-    emit dataUpdated(0);
     return;
 }
 void SetInputValue(const bool& value){

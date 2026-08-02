@@ -40,14 +40,26 @@ class SinglyShapeNode:public NodeDelegateModel,public NodeInitializer{
  }
  void load(const QJsonObject& object) override{
     QString value=object["BRep_Shape"].toString();
-  
+    Index=object["Shape Index"].toInt();
     OutputValue=ToShape(value);
   
-    Index=object["Shape Index"].toInt();
-   SetShapeData(OutputValue);
+    
+   SetOutputData(OutputValue);
+   return;
  }
  void SetInitShape(const TopoDS_Shape& sh){
     initialShape=sh;
+    return;
+ }
+ void SetOutputData(const TopoDS_Shape& sh){
+     OutputValue=sh;
+    if(output_data){
+        output_data->SetData(OutputValue);
+    }
+    else{
+        output_data=make_shared<ShapeNodeData>(tr(""));
+        output_data->SetData(OutputValue);
+    }
     return;
  }
  void SetShapeData(const TopoDS_Shape& shape){

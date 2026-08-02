@@ -2,6 +2,7 @@
 #define NODEGRAPHWIDGET_HPP
 #include<QtWidgets/QWidget>
 #include<GraphicsView>
+#include<QtGui/QKeyEvent>
 #include<memory>
 #include<NodeGraphModel.hpp>
 #include<DataFlowGraphicsScene>
@@ -33,6 +34,8 @@
 #include<FloatInputDialog.hpp>
 #include<BoolDialog.hpp>
 #include<IntegerDialog.hpp>
+#include<StyleCollection.hpp>
+
 using namespace INFO;
 using namespace std;
 using namespace QtNodes;
@@ -58,6 +61,7 @@ INDEX_TRANSFORM,
 INDEX_SHAPE,
 INDEX_WITHSHAPE,
 INDEX_DELETE,
+INDEX_DISPLAYNULL,
 INDEX_NULL
 };
 enum SHAPEDRAW{
@@ -73,6 +77,7 @@ SP_MATNODE,
 SP_FLOAT,
 SP_PRIMLINE,
 SP_PRIMCIRCLE,
+SP_EDGEARRAY,
 SP_NULL
 };
 enum RENDER_STATE{
@@ -127,7 +132,7 @@ std::unique_ptr<QAction> deleteFaceAction=std::make_unique<QAction>(tr("Delete F
 std::unique_ptr<QAction> showIndex=std::make_unique<QAction>(tr("Show Index"),nullptr);
 std::unique_ptr<QAction> showIndex1=std::make_unique<QAction>(tr("Show Index"),nullptr);
 std::unique_ptr<QAction> unHighlightFaceAction=std::make_unique<QAction>(tr("Unhighlight"),nullptr);
-std::unique_ptr<QAction> setFalseAction=std::make_unique<QAction>(tr("Set To False"));
+std::unique_ptr<QAction> setFalseAction=std::make_unique<QAction>(tr("Set To Default"));
 std::unique_ptr<QAction> editAction=std::make_unique<QAction>(tr("Edit"));
 std::unique_ptr<QAction> selectPointAction=std::make_unique<QAction>(tr("Select Point For Indexer"));
 std::unique_ptr<QAction> indexAction=std::make_unique<QAction>(tr("Index Node Action"));
@@ -135,14 +140,28 @@ std::unique_ptr<QMenu> indexMenu= std::make_unique<QMenu>();
 std::unique_ptr<QAction> showIndex2=std::make_unique<QAction>(tr("Show Assigned Index"));
 std::unique_ptr<QAction> IsEmpty=std::make_unique<QAction>(tr("Check Shape Status"));
 std::unique_ptr<QAction> nullifyAction=std::make_unique<QAction>(tr("Nullify Shape"));
+std::unique_ptr<QAction> identifyShape=make_unique<QAction>(tr("Show Shape Type"));
 std::unique_ptr<QAction> nullifyTransAction=std::make_unique<QAction>(tr("Nullify Transform"));
 std::unique_ptr<QAction> nullifyWithShape=std::make_unique<QAction>(tr("Nullify Shape And Delete"));
 std::unique_ptr<QAction> deleteViewObject=std::make_unique<QAction>(tr("Delete View Object"));
+std::unique_ptr<QAction> refreshGraph=make_unique<QAction>(tr("Refresh"));
+std::unique_ptr<QAction> setToDisplayNull=make_unique<QAction>(tr("Set To Null DisplayType "));
+std::unique_ptr<QAction> changeBackgroundColor=make_unique<QAction>(tr("Change Background Colour"));
+std::unique_ptr<ColorDialog> clrdialog=std::make_unique<ColorDialog>();
 std::unique_ptr<FloatDialog>fdialog=std::make_unique<FloatDialog>();
 std::unique_ptr<BoolDialog> bdialog=std::make_unique<BoolDialog>();
+
 std::unique_ptr<MaterialEditorDialog> matDialog=std::make_unique<MaterialEditorDialog>();
 std::unique_ptr<IntegerDialog> integerDialog=std::make_unique<IntegerDialog>();
 std::reference_wrapper<Handle(AIS_InteractiveContext)> context;
+
+std::unique_ptr<QMenu> groupMenu=make_unique<QMenu>();
+std::unique_ptr<QAction> groupDelete=make_unique<QAction>(tr("Delete"));
+std::unique_ptr<QAction> import=make_unique<QAction>(tr("Import To Inspector"));
+
+
+
+
 
 DataFlowGraphModel* graph_model=nullptr;
 size_t CurrId=0;
@@ -219,10 +238,18 @@ gp_Dir lineDir; //for line direction
 float LineLength=0.0f;
 gp_Ax2 circleAxis;
 float circleRadius=1.0f;
+QJsonObject viewJsonObject;
+QJsonObject connJsonObject;
+QJsonObject nodeJsonObject;
 NodeGraphWidget(QWidget* parent_widget,Handle(AIS_InteractiveContext)& context_1):GraphicsView(parent_widget),context{context_1}{
    Registry.reset(new NodeRegistry());
    //Register Model
- 
+  const auto& nstyle=StyleCollection::nodeStyle();
+  const auto& conStyle=StyleCollection::connectionStyle();
+  const auto& viewStyle=StyleCollection::flowViewStyle();
+  viewJsonObject=viewStyle.toJson();
+  connJsonObject=conStyle.toJson();
+  nodeJsonObject=nstyle.toJson();
    std::cout<<"I am in NodeGraphWidget Constructor"<<"\n";
      selectPointAction->setCheckable(true);
   indexAction->setMenu(indexMenu.get());
@@ -231,6 +258,7 @@ NodeGraphWidget(QWidget* parent_widget,Handle(AIS_InteractiveContext)& context_1
   indexMenu->addAction(nullifyAction.get());
   indexMenu->addAction(nullifyTransAction.get());
   indexMenu->addAction(nullifyWithShape.get());
+  indexMenu->addAction(setToDisplayNull.get());
    faceNodeMenu=std::make_unique<QMenu>();
    edgeNodeMenu=std::make_unique<QMenu>();
    faceNodeMenu->addAction(highlightFaceAction.get());
@@ -240,10 +268,15 @@ NodeGraphWidget(QWidget* parent_widget,Handle(AIS_InteractiveContext)& context_1
   faceNodeMenu->addAction(showIndex.get());
    edgeNodeMenu->addAction(showIndex1.get());
    nodeSceneMenu->addAction(indexAction.get());
+   nodeSceneMenu->addAction(changeBackgroundColor.get());
+   nodeSceneMenu->addAction(refreshGraph.get());
    nodeSceneMenu->addAction(setFalseAction.get());
    nodeSceneMenu->addAction(editAction.get());
    nodeSceneMenu->addAction( selectPointAction.get());
-  
+   groupMenu->addAction(groupDelete.get());
+   groupMenu->addAction(import.get());
+   singlyNodeMenu->addAction(identifyShape.get());
+
    Registry->registerModel<OutputNode>([this]()->std::shared_ptr<OutputNode>{
       auto ptr=make_shared<OutputNode>();
       QObject::connect(ptr.get(),&OutputNode::OnSendAIS_Shape,this,&NodeGraphWidget::OnReceiveAIS_Shape);
@@ -263,6 +296,7 @@ Registry->registerModel<ConvertToAIS_ShapeNode>("Conversion");
     QObject::connect(ptr.get(),&FloatInputNode::OnUpdateInput,this,&NodeGraphWidget::OnHandleInputEvent);
     return ptr;   
 },tr("DataTypes"));
+ Registry->registerModel<ConvertToFace>(tr("Conversion"));
 Registry->registerModel<IntegerInputNode>("DataTypes");
    Registry->registerModel<StringInputNode>("DataTypes");
    Registry->registerModel<SinglyWireVector>(tr("Primitives Collection"));
@@ -339,6 +373,7 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
    Registry->registerModel<MakeDraftAngleNode>(tr("CAD operations"));
    Registry->registerModel<MakeEvolvedNode>(tr("CAD operations"));
    Registry->registerModel<LoftNode>(tr("CAD operations"));
+   Registry->registerModel<MakeOffsetShapeNode>(tr("CAD operations"));
    Registry->registerModel<ToWireNode>(tr("Casting"));
    Registry->registerModel<ToEdgeNode>(tr("Casting"));
    Registry->registerModel<ToFaceNode>(tr("Casting"));
@@ -347,6 +382,18 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
    Registry->registerModel<MakeOffsetWire>(tr("CAD operations"));
    Registry->registerModel<PrimitiveLineNode>(tr("2D Primitive"));
    Registry->registerModel<PrimitiveCircleNode>(tr("2D Primitive"));
+   //For Wire Repairs
+   Registry->registerModel<ReorderWireNode>(tr("Wire Repair"));
+   Registry->registerModel<FixConnectedWireNode>(tr("Wire Repair"));
+   Registry->registerModel<FixEdgeCurvesWireNode>(tr("Wire Repair"));
+   Registry->registerModel<FixDegeneratedWireNode>(tr("Wire Repair"));
+   Registry->registerModel<SelfIntersectWireNode>(tr("Wire Repair"));
+   Registry->registerModel<FixGapWireNode>(tr("Wire Repair"));
+   //MirrorNode
+   Registry->registerModel<AboutPlaneMirrorNode>(tr("Mirror"));
+   Registry->registerModel<AboutPointMirrorNode>(tr("Mirror"));
+   Registry->registerModel<AboutAxisMirrorNode>(tr("Mirror"));
+   
    graph_model=new DataFlowGraphModel(Registry);
    scene_1=std::make_shared<DataFlowGraphicsScene>(*graph_model,this);
    GraphicsView::setScene(scene_1.get());
@@ -387,6 +434,34 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
   connect(nullifyWithShape.get(),&QAction::triggered,this,&NodeGraphWidget::HandleNullifyWithShape);
   connect(bdialog.get(),&BoolDialog::EmitDone,this,&NodeGraphWidget::OnHandleBool);
   connect(integerDialog.get(),&IntegerDialog::EmitDone,this,&NodeGraphWidget::OnHandleDoneForIntegerDialog);
+  connect(refreshGraph.get(),&QAction::triggered,this,&NodeGraphWidget::OnHandleRefresh);
+  connect(setToDisplayNull.get(),&QAction::triggered,this,&NodeGraphWidget::HandleDisplayNull);
+  connect(changeBackgroundColor.get(),&QAction::triggered,this,&NodeGraphWidget::OnHandleBckColor);
+  connect(clrdialog->ColorWidget(),&ColorCollectionWidget::GetSelectedColor,this,&NodeGraphWidget::OnSelectBckColor);
+  connect(groupDelete.get(),&QAction::triggered,this,&NodeGraphWidget::OnHandleGroupDelete);
+  connect(identifyShape.get(),&QAction::triggered,this,&NodeGraphWidget::OnIdentifyShape);
+  return;
+}
+void OnCreateNode(const QString& value){
+  auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+       if(!gscene){
+        return;
+       }
+      size_t nodeId = gscene->GraphModel()->addNode(value);
+    if (nodeId != InvalidNodeId){
+       const auto& nstyle=StyleCollection::nodeStyle();
+        gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(scenePos));
+        std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
+            if(ngo.get()){
+              ngo->setVisible(true);
+             ngo->setCacheMode(QGraphicsItem::NoCache);
+             ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
+              gscene->update();
+              updateSceneRect(gscene->sceneRect());
+              cout<<"Node Graphics Object successfully rendered"<<endl; 
+            }
+      }
   return;
 }
 void OnFindSubFace(const int& parentindex,const int& childindex){
@@ -552,7 +627,14 @@ void UpdateShape(const TopoDS_Shape& p_Shape){
    }
    return;
 }
+void PrintToCout(const QJsonObject& object){
+  QJsonDocument jsondoc(object);
+  std::cout<<"\n";
+  std::cout<<jsondoc.toJson().toStdString()<<"\n";
+ 
 
+return;
+}
 void ClearScene(){
   auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
        if(!gscene){
@@ -594,6 +676,93 @@ void LoadScene(const QJsonObject& scenejson){
     return;
 
 }
+void ResetCache(){
+  setCacheMode(QGraphicsView::CacheNone);
+  return;
+}
+void SetCacheModeToCaching(){
+  setCacheMode(QGraphicsView::CacheBackground);
+  return;
+}
+void OnSetViewStyle(const QJsonObject& object){
+  auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+       if(!gscene){
+        return;
+       }
+  GraphicsViewStyle style=StyleCollection::flowViewStyle();;
+  style.loadJson(object);
+  StyleCollection::setGraphicsViewStyle(style);
+  ResetCache();
+  viewport()->update();
+  gscene->update(gscene->sceneRect());
+  updateSceneRect(gscene->sceneRect());
+  SetCacheModeToCaching();
+  auto graphstyle=StyleCollection::flowViewStyle();
+  PrintToCout(graphstyle.toJson());
+  return;
+}
+void OnSetConnectionStyle(const QJsonObject& object){
+  auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+  if(!gscene){
+    return;
+  }
+   ConnectionStyle style=StyleCollection::connectionStyle();
+   style.loadJson(object);
+   StyleCollection::setConnectionStyle(style);
+    for(auto& ref:gscene->items()){
+      auto connObject=dynamic_cast<ConnectionGraphicsObject*>(ref);
+      if(connObject){
+        connObject->setCacheMode(QGraphicsItem::NoCache);
+        connObject->update();
+        connObject->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
+
+      }
+      }
+    auto connstyle=StyleCollection::connectionStyle();
+      PrintToCout(connstyle.toJson());
+   
+  return;
+}
+void OnSetNodeStyle(const QJsonObject& object){
+  auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+  if(!gscene){
+    return;
+  }
+  NodeStyle style=StyleCollection::nodeStyle();
+  style.loadJson(object);
+  StyleCollection::setNodeStyle(style);
+  const auto& nstyle=StyleCollection::nodeStyle();
+  auto gmodel=gscene->GraphModel();
+  if(!gmodel){
+    return;
+  }
+  NodeDelegateModel* model=nullptr;
+  for(auto iter=gmodel->Models().begin();iter!=gmodel->Models().end();++iter){
+    model=iter->second.get();
+    if(model){
+      model->setNodeStyle(nstyle);
+    }
+  }
+  for(auto& ref:gscene->items()){
+      auto nodeObject=dynamic_cast<NodeGraphicsObject*>(ref);
+      if(nodeObject){
+        nodeObject->setCacheMode(QGraphicsItem::NoCache);
+        nodeObject->update();
+        nodeObject->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
+      }
+      }
+  PrintToCout(nstyle.toJson());
+  return;
+}
+QJsonObject GetDefaultViewStyle() const{
+   return viewJsonObject;
+}
+QJsonObject GetDefaultConnStyle() const{
+  return connJsonObject;
+}
+QJsonObject GetDefaultNodeStyle() const{
+  return nodeJsonObject;
+}
 ~NodeGraphWidget(){
   if(graph_model){
     delete graph_model;
@@ -606,9 +775,9 @@ void contextMenuEvent(QContextMenuEvent* event) override{
   if(event==nullptr){
     return; 
   }
-  if(cms==CMS_DRAG){
-   dragMenu->exec(event->globalPos());
-   return;
+  if(dragMode()==QGraphicsView::RubberBandDrag){
+      groupMenu->exec(event->globalPos());
+      return;
   }
   if(cms==CMS_SINGLENODE){
     singlyNodeMenu->exec(event->globalPos());
@@ -649,10 +818,7 @@ void mousePressEvent(QMouseEvent* event) override{
      floatnode=nullptr; //an object of floatnode
      bnode=nullptr; //an object of boolnode
      integernode=nullptr;
-  if(dstatus==DS_DRAG){
-   setDragMode(QGraphicsView::RubberBandDrag);
-     return;
-  }
+     
   
   }
   if(CanDrawPointNode){
@@ -663,16 +829,20 @@ void mousePressEvent(QMouseEvent* event) override{
        }
       size_t nodeId = gscene->GraphModel()->addNode(tr("Point Node"));
     if (nodeId != InvalidNodeId){
+       const auto& nstyle=StyleCollection::nodeStyle();
         gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
         auto point_node=dynamic_cast<SinglyPointNode*>(gscene->GraphModel()->Models().at(nodeId).get());
         if(point_node){
+          point_node->setNodeStyle(nstyle);
           std::cout<<"Current Value of gp_Pnt("<<this->x<<","<<this->y<<","<<this->z<<");"<<endl;
           point_node->SetPoint(Point(this->x,this->y,this->z));
             std::cout<<"Successful Creation of Point Node"<<endl;
             std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
             if(ngo.get()){
               ngo->setVisible(true);
-              ngo->update();
+             ngo->setCacheMode(QGraphicsItem::NoCache);
+             ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               cout<<"Node Graphics Object successfully rendered"<<endl; 
@@ -694,9 +864,11 @@ void mousePressEvent(QMouseEvent* event) override{
        }
       size_t nodeId = gscene->GraphModel()->addNode(tr("Transform Node")); 
      if(nodeId!= InvalidNodeId){
+      const auto& nstyle=StyleCollection::nodeStyle();
        gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
        auto trans_node=dynamic_cast<SinglyTransformNode*>(gscene->GraphModel()->Models().at(nodeId).get());
        if(trans_node){
+        trans_node->setNodeStyle(nstyle);
          trans_node->SetTransformData(NodeInputTransform);
          if(NodeInputTransform.Form()==gp_Identity){
           std::cout<<"It is an identity matrix"<<endl;
@@ -704,7 +876,9 @@ void mousePressEvent(QMouseEvent* event) override{
           std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
              ngo->setVisible(true);
+             ngo->setCacheMode(QGraphicsItem::NoCache);
              ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               cout<<"Node Initiated Successfully"<<std::endl;
@@ -726,6 +900,39 @@ void mousePressEvent(QMouseEvent* event) override{
      return;
     }
     switch(shapedraw){
+    case SP_EDGEARRAY:{
+      auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+       if(!gscene){
+        return;
+       }
+      size_t nodeId = gscene->GraphModel()->addNode(tr("Edge Array")); 
+     if(nodeId!= InvalidNodeId){
+       gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
+       auto node=dynamic_cast<EdgeArrayNode*>(gscene->GraphModel()->Models().at(nodeId).get());
+       const auto& nstyle=StyleCollection::nodeStyle();
+       if(node){
+         node->SetEdges(chosenWire);
+         node->setNodeStyle(nstyle);
+          std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
+          if(ngo){
+              ngo->setVisible(true);
+              ngo->setCacheMode(QGraphicsItem::NoCache);
+             ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
+              gscene->update();
+              updateSceneRect(gscene->sceneRect());
+              cout<<"Node Initiated Successfully"<<std::endl;
+              return;
+          }
+       }
+       else{
+        std::cout<<"Failed to get a transformation node"<<std::endl;
+         return;
+       }
+     
+    }
+    break;
+    }
     case SP_PRIMCIRCLE:{
      auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
        if(!gscene){
@@ -735,13 +942,16 @@ void mousePressEvent(QMouseEvent* event) override{
      if(nodeId!= InvalidNodeId){
        gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
        auto node=dynamic_cast<PrimitiveCircleNode*>(gscene->GraphModel()->Models().at(nodeId).get());
+       const auto& nstyle=StyleCollection::nodeStyle();
        if(node){
          node->SetCircle(circleAxis,circleRadius);
-        
+         node->setNodeStyle(nstyle);
           std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
-             ngo->setVisible(true);
+              ngo->setVisible(true);
+              ngo->setCacheMode(QGraphicsItem::NoCache);
              ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               cout<<"Node Initiated Successfully"<<std::endl;
@@ -770,12 +980,15 @@ void mousePressEvent(QMouseEvent* event) override{
        gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
        auto node=dynamic_cast<PrimitiveLineNode*>(gscene->GraphModel()->Models().at(nodeId).get());
        if(node){
+        const auto& nstyle=StyleCollection::nodeStyle();
          node->SetLine(lineDir,pnt,LineLength);
-        
+         node->setNodeStyle(nstyle);
           std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
              ngo->setVisible(true);
+             ngo->setCacheMode(QGraphicsItem::NoCache);
              ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               cout<<"Node Initiated Successfully"<<std::endl;
@@ -804,12 +1017,15 @@ void mousePressEvent(QMouseEvent* event) override{
        gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
        auto node=dynamic_cast<FloatNode*>(gscene->GraphModel()->Models().at(nodeId).get());
        if(node){
+        const auto& nstyle=StyleCollection::nodeStyle();
          node->SetData(nodeFloatValue);
-        
+         node->setNodeStyle(nstyle);
           std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
              ngo->setVisible(true);
-             ngo->update();
+           ngo->setCacheMode(QGraphicsItem::NoCache);
+           ngo->update();
+          ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               cout<<"Node Initiated Successfully"<<std::endl;
@@ -835,15 +1051,19 @@ void mousePressEvent(QMouseEvent* event) override{
        }
       size_t nodeId = gscene->GraphModel()->addNode(tr("Wires")); 
      if(nodeId!= InvalidNodeId){
+       
        gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
        auto node=dynamic_cast<SinglyWireVector*>(gscene->GraphModel()->Models().at(nodeId).get());
        if(node){
+        const auto& nstyle=StyleCollection::nodeStyle();
          node->SetWires(wires);
-        
+        node->setNodeStyle(nstyle);
           std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
              ngo->setVisible(true);
+             ngo->setCacheMode(QGraphicsItem::NoCache);
              ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               cout<<"Node Initiated Successfully"<<std::endl;
@@ -874,12 +1094,15 @@ void mousePressEvent(QMouseEvent* event) override{
        gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
        auto node=dynamic_cast<SinglyMaterialNode*>(gscene->GraphModel()->Models().at(nodeId).get());
        if(node){
+        const auto& nstyle=StyleCollection::nodeStyle();
          node->SetMaterial(nodeShapeMaterial);
-        
+        node->setNodeStyle(nstyle);
           std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
              ngo->setVisible(true);
+             ngo->setCacheMode(QGraphicsItem::NoCache);
              ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               cout<<"Node Initiated Successfully"<<std::endl;
@@ -910,12 +1133,15 @@ void mousePressEvent(QMouseEvent* event) override{
        gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
        auto node=dynamic_cast<SinglyAxisNode*>(gscene->GraphModel()->Models().at(nodeId).get());
        if(node){
+        const auto& nstyle=StyleCollection::nodeStyle();
          node->SetDir(nodeInputDir);
-        
+        node->setNodeStyle(nstyle);
           std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
              ngo->setVisible(true);
+             ngo->setCacheMode(QGraphicsItem::NoCache);
              ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               cout<<"Node Initiated Successfully"<<std::endl;
@@ -946,14 +1172,18 @@ void mousePressEvent(QMouseEvent* event) override{
        gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
        auto trans_node=dynamic_cast<SinglyTransformNode*>(gscene->GraphModel()->Models().at(nodeId).get());
        if(trans_node){
+        const auto& nstyle=StyleCollection::nodeStyle();
          trans_node->SetTransformData(Transform);
+         trans_node->setNodeStyle(nstyle);
          if(Transform.Form()==gp_Identity){
           std::cout<<"It is an identity matrix"<<endl;
          }
           std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
              ngo->setVisible(true);
+             ngo->setCacheMode(QGraphicsItem::NoCache);
              ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               cout<<"Node Initiated Successfully"<<std::endl;
@@ -981,19 +1211,24 @@ void mousePressEvent(QMouseEvent* event) override{
        }
        size_t nodeId = gscene->GraphModel()->addNode(tr("Single Edge Node")); 
         if(nodeId!= InvalidNodeId){
+
        gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
        auto shape_node=dynamic_cast<SinglyEdgeNode*>(gscene->GraphModel()->Models().at(nodeId).get());
        if(shape_node){
         if(nodeInputEdge.IsSame(TopoDS_Edge())){
           std::cout<<"Node Input Edge Is Empty"<<std::endl;
         }
+         const auto& nstyle=StyleCollection::nodeStyle();
+         shape_node->setNodeStyle(nstyle);
          shape_node->SetEdge(nodeInputEdge);
          shape_node->SetParentIndex(ParentId);
          shape_node->SetIndex(subShapeId);
           std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
              ngo->setVisible(true);
+             ngo->setCacheMode(QGraphicsItem::NoCache);
              ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               cout<<"Node Initiated Successfully"<<std::endl;
@@ -1020,11 +1255,15 @@ void mousePressEvent(QMouseEvent* event) override{
        gscene->GraphModel()->setNodeData(nodeId, NodeRole::Position, mapToScene(event->pos()));
        auto shape_node=dynamic_cast<SinglyWireNode*>(gscene->GraphModel()->Models().at(nodeId).get());
        if(shape_node){
+        const auto& nstyle=StyleCollection::nodeStyle();
          shape_node->SetWire(chosenWire);
+         shape_node->setNodeStyle(nstyle);
          std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
              ngo->setVisible(true);
+             ngo->setCacheMode(QGraphicsItem::NoCache);
              ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               cout<<"Node Initiated Successfully"<<std::endl;
@@ -1049,7 +1288,9 @@ void mousePressEvent(QMouseEvent* event) override{
          std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
              ngo->setVisible(true);
+             ngo->setCacheMode(QGraphicsItem::NoCache);
              ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               isCmdRendered=true;
@@ -1075,15 +1316,19 @@ void mousePressEvent(QMouseEvent* event) override{
         if(NodeInputShape.IsSame(TopoDS_Shape())){
           std::cout<<"Node Input Shape Is Empty"<<std::endl;
         }
+        const auto& nstyle=StyleCollection::nodeStyle();
          shape_node->SetShapeData(NodeInputShape);
          shape_node->SetInitShape(NodeInitialShape);
          cout<<"CurrShape Id: "<<ShapeId<<endl;
          shape_node->SetId(ShapeId);
+         shape_node->setNodeStyle(nstyle);
          ShapeId=-1;
           std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
              ngo->setVisible(true);
+             ngo->setCacheMode(QGraphicsItem::NoCache);
              ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               cout<<"Node Initiated Successfully"<<std::endl;
@@ -1114,13 +1359,17 @@ void mousePressEvent(QMouseEvent* event) override{
         if(nodeInputFace.IsSame(TopoDS_Face())){
           std::cout<<"Node Input Face Is Empty"<<std::endl;
         }
+        const auto& nstyle=StyleCollection::nodeStyle();
          shape_node->SetFace(nodeInputFace);
          shape_node->SetParentIndex(ParentId);
          shape_node->SetIndex(subShapeId);
+         shape_node->setNodeStyle(nstyle);
           std::unique_ptr<NodeGraphicsObject> ngo=std::make_unique<NodeGraphicsObject>(*gscene,nodeId);
           if(ngo){
              ngo->setVisible(true);
+             ngo->setCacheMode(QGraphicsItem::NoCache);
              ngo->update();
+             ngo->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
               gscene->update();
               updateSceneRect(gscene->sceneRect());
               cout<<"Node Initiated Successfully"<<std::endl;
@@ -1395,6 +1644,28 @@ void mouseReleaseEvent(QMouseEvent* event) override{
   }
   return;
 }
+void keyPressEvent(QKeyEvent* event) override{
+  GraphicsView::keyPressEvent(event);
+  if(event->key()==Qt::Key_A && event->modifiers()==Qt::ControlModifier){
+    OnCreateNode(tr("Arrays To Vector(Shape)"));
+    return;
+  }
+  if(event->key()==Qt::Key_X && event->modifiers()==Qt::ControlModifier){
+    OnCreateNode(tr("AxisNode"));
+    return;
+  }
+   if(event->key()==Qt::Key_B && event->modifiers()==Qt::ControlModifier){
+    OnCreateNode(tr("Bool Node"));
+    return;
+  }
+  if(event->key()==Qt::Key_L && event->modifiers()==Qt::ControlModifier){
+    OnCreateNode(tr("Bounded Line"));
+    return;
+  }
+
+
+  return;
+}
 Handle(AIS_InteractiveContext)& Context() {
     return context.get();
 }
@@ -1589,9 +1860,9 @@ void OnSaveNCADFile(){
        }
   
    bool Ok;
-   if(FileName==tr("")){
+   if(FileName.isEmpty()){
        FileName=QInputDialog::getText(nullptr,tr("NodeCAD Text Input Dialog"),tr("Filename"),QLineEdit::Normal,tr(""),&Ok);
-       if(FileName==tr("")){
+       if(FileName.isEmpty()){
         FileName=tr("New File");
        }
        if(Ok){
@@ -1900,14 +2171,17 @@ void OnHandleEdit(){
   }
   if(floatnode){
     fdialog->SetFloat(floatnode->GetData());
+    fdialog->SetFloatNode(floatnode);
     fdialog->exec();
   }
   if(bnode){
     bdialog->SetValue(bnode->Value());
+    bdialog->SetBoolNode(bnode);
     bdialog->exec();
   }
   if(integernode){
   integerDialog->SetPrevValue(integernode->Output());
+  integerDialog->SetIntNode(integernode);
   integerDialog->exec();
   }
   return;
@@ -2011,6 +2285,13 @@ void HandleDeleteViewObject(){
   }
   return;
 }
+void HandleDisplayNull(){
+   if(indexnode){
+    indstate=INDEX_DISPLAYNULL;
+     emit EmitShapeIndexForNullify(indexnode->index());
+  }
+   return;
+}
 void HandleEmitDoneForFloatDialog(){
   if(floatnode){
     floatnode->SetData(fdialog->GetData());
@@ -2026,6 +2307,131 @@ void OnHandleDoneForIntegerDialog(){
 void OnHandleBool(){
   if(bnode){
     bnode->SetValue(bdialog->GetValue());
+  }
+  return;
+}
+void OnHandleRefresh(){
+   auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+       if(!gscene){
+        return;
+       }
+    for(auto& ref:gscene->items()){
+      auto connObject=dynamic_cast<ConnectionGraphicsObject*>(ref);
+      if(connObject){
+        connObject->setCacheMode(QGraphicsItem::NoCache);
+        connObject->update();
+        connObject->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
+
+      }
+    }
+      for(auto& ref:gscene->items()){
+      auto nodeObject=dynamic_cast<ConnectionGraphicsObject*>(ref);
+      if(nodeObject){
+        nodeObject->setCacheMode(QGraphicsItem::NoCache);
+        nodeObject->update();
+        nodeObject->setCacheMode(QGraphicsItem::DeviceCoordinateCache);
+        
+      }
+      }
+   return;
+
+}
+void OnHandleBckColor(){
+if(clrdialog->exec()==QDialog::Accepted){
+  setCacheMode(QGraphicsView::CacheNone);
+  Quantity_Color color=clrdialog->GetColor();
+  setBackgroundBrush(QColor::fromRgbF(color.Red(),color.Green(),color.Blue()));
+  viewport()->update();
+  nodeScene()->update();
+  setCacheMode(QGraphicsView::CacheBackground);
+  std::cout<<"Color Set"<<"\n";
+}
+else{
+  return;
+}
+ return;
+}
+void OnSelectBckColor(){
+  Quantity_Color color= clrdialog->ColorWidget()->GetChosenColor();
+   setCacheMode(QGraphicsView::CacheNone);
+    setBackgroundBrush(QColor::fromRgbF(color.Red(),color.Green(),color.Blue()));
+  viewport()->update();
+  nodeScene()->update();
+  setCacheMode(QGraphicsView::CacheBackground);
+  return;
+}
+void OnHandleGroupDelete(){
+  if(dragMode()!=QGraphicsView::RubberBandDrag){
+    LoadMessage(tr(""),tr("RubberBandDrag is not activated,Simply Press the shift modifier key to activate it"));
+    return;
+  }
+  if(rubberBandRect().isNull()){
+     LoadMessage(tr(""),tr("No Object Selected"));
+     return;
+  }
+  auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+  if(!gscene){
+    LoadMessage(tr(""),tr("Failed to cast to an object of DataFlowGraphicsScene"));
+    return;
+  }
+  auto objectList=gscene->items(mapToScene(rubberBandRect()).boundingRect());
+  if(objectList.empty()){
+   LoadMessage(tr(""),tr("No Objects Selected"));
+   return;
+  }
+  //OnDeleteNode();
+  for(auto& ref:objectList){
+    auto nobject=qgraphicsitem_cast<NodeGraphicsObject*>(ref);
+    if(nobject){
+      OnDeleteNode(nobject->nodeId());
+    }
+  }
+  return;
+}
+void OnIdentifyShape(){
+  if(singleNode){
+    DetermineShapeType(singleNode->Shape().ShapeType());
+    
+  }
+  return;
+}
+void DetermineShapeType(const TopAbs_ShapeEnum& shtype){
+  switch(shtype){
+    case TopAbs_EDGE:{
+      LoadMessage(tr(""),tr("EDGE"));
+      break;
+    }
+    case TopAbs_VERTEX:{
+      LoadMessage(tr(""),tr("VERTEX"));
+      break;
+    }
+    case TopAbs_WIRE:{
+      LoadMessage(tr(""),tr("WIRE"));
+      break;
+    }
+    case TopAbs_FACE:{
+      LoadMessage(tr(""),tr("FACE"));
+      break;
+    }
+    case TopAbs_SHELL:{
+      LoadMessage(tr(""),tr("SHELL"));
+      break;
+    }
+    case TopAbs_SOLID:{
+      LoadMessage(tr(""),tr("SOLID"));
+      break;
+    }
+    case TopAbs_COMPOUND:{
+      LoadMessage(tr(""),tr("COMPOUND"));
+      break;
+    }
+    case TopAbs_COMPSOLID:{
+      LoadMessage(tr(""),tr("COMPOUND SOLID"));
+      break;
+    }
+    default:
+    LoadMessage(tr(""),tr("SHAPE"));
+    break;
   }
   return;
 }

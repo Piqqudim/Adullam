@@ -15,6 +15,7 @@ using namespace QtNodes;
 using namespace std;
 
 //this should contain ShouldSend Variable,ShouldKeep Variable, Transform Variable and etc;
+//this should be used after indexer node
 class PrimitiveShapeNode:public NodeDelegateModel,public NodeInitializer{
 private:
 

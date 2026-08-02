@@ -4,6 +4,10 @@
 #include<NodeDelegateModel>
 #include<memory>
 #include<ShapeNodeData.hpp>
+#include<QJsonArray>
+#include<JsonShapeConverter.hpp>
+#include<CurveParam.hpp>
+#include<TopExp_Explorer.hxx>
 using namespace std;
 using namespace QtNodes;
 class SinglyWireVector:public NodeDelegateModel{
@@ -159,4 +163,65 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
 QWidget* embeddedWidget() override{ 
    return nullptr;
  }
+};
+
+
+class EdgeArrayNode:public NodeDelegateModel{
+private:
+std::vector<shared_ptr<CurveParam>> curveparams; //for storage
+std::shared_ptr<WireNodeData> wirenodedata;
+TopoDS_Wire outputWire;
+
+void StoreWire(){
+    if(outputWire.IsNull()){
+        return;
+    }
+    
+    return;
+}
+public:
+EdgeArrayNode(){
+    return;
+}
+
+void SetEdges(const TopoDS_Wire& wire){
+  outputWire=wire;
+  emit dataUpdated(0);
+  return;
+}
+unsigned int nPorts(PortType portType) const override{
+    switch(portType){
+        case PortType::In:{
+            return 0;
+        }
+        case PortType::Out:{
+            return 1;
+        }
+    }
+    return 0;
+}
+QString caption() const override{
+    return tr("Edge Array");
+}
+QString name() const override{
+    return caption();
+}
+NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
+    return WireNodeData(tr("Output Wire")).type();
+}
+void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
+ 
+
+    return;
+}
+shared_ptr<NodeData> outData(portIndex port) const override{
+       if(!wirenodedata){
+        wirenodedata=make_shared<WireNodeData>(tr(""));
+        wirenodedata->SetData(outputWire);
+        return static_pointer_cast<NodeData>(wirenodedata);
+    }
+    wirenodedata->SetData(outputWire);
+    return static_pointer_cast<NodeData>(wirenodedata);
+}
+QWidget* embeddedWidget() override{return nullptr;}
 };

@@ -590,6 +590,9 @@ void SetGroupColor(const Quantity_Color& col){
 std::vector<TopoDS_Edge> Edges() const{
     return selectededges;
 }
+std::vector<EdgeSelector> edgeSelectors() const{
+    return edgeselectors;
+} 
 void AddToSelection(Handle(AIS_Shape) myshape,const TopoDS_Edge& edge){
     if(!edgeselectors.empty()){
         for(int i=0;i<edgeselectors.size();i++){

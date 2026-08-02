@@ -142,9 +142,7 @@ void OnDisplay(){
     if(!context){
         return;
     }
-    if(angle>=0.0000 && angle<=0.99999){
-        return;
-    }
+   
     if(radius<=0.0){
         return;
     }

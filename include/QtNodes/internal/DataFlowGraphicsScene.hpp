@@ -27,11 +27,12 @@ public:
     }
 public Q_SLOTS:
     bool save() const;
+    
     bool load();
 
 Q_SIGNALS:
     void sceneLoaded();
-   void OnSendString(const QString& str); 
+    void OnSendString(const QString& str);
 
 private:
     DataFlowGraphModel &_graphModel;

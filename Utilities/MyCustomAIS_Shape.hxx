@@ -44,6 +44,7 @@
 #include<TopoDS.hxx>
 #include<iostream>
 #include<TopoDS.hxx>
+#include<DisplayType.hpp>
 #include<gp_GTrsf.hxx>
 #include<InfoUtility.hpp>
 using namespace INFO;
@@ -60,6 +61,7 @@ enum ERROR_TYPE{
 class CustomAIS_Shape:public AIS_ColoredShape{
 
 public:
+int partId=-1;
 int UniqueId=-1;    
 bool IsACopy=false;  
 bool hasMaterial=false; //by default the object does not have any material
@@ -67,7 +69,6 @@ bool ColorIsSet=false;
 bool isEdgeSelected=false;
 bool isFaceSelected=false;
 bool isWireSelected=false;
-bool isTransformApplied=false;
 Graphic3d_MaterialAspect material;
 Quantity_Color initialColor;
 gp_Trsf initialTrsf; //compounded transformation
@@ -79,6 +80,7 @@ int highlightIndex=-1; //highlightIndex for face
 int edgeHighlightIndex=-1;
 int wireHighlightIndex=-1;
 ERROR_TYPE et;
+DISPLAY_TYPE dt=DP_NULL; //this is for objects that have unique index
 CustomAIS_Shape(const TopoDS_Shape& theshape):AIS_ColoredShape(theshape){
   
   DissectShape(theshape);

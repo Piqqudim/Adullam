@@ -12,6 +12,7 @@ std::unique_ptr<QAction> convertAction;
 std::unique_ptr<QAction> searchAction;
 std::unique_ptr<QAction> DrawAction;
 std::unique_ptr<QAction>convertToPointNode;
+std::unique_ptr<QAction> endFaceMenu;
 FaceMenu():QMenu(){
     showInfoAction=std::make_unique<QAction>(tr("Show Info"),nullptr);
     convertAction=std::make_unique<QAction>(tr("Convert To Face Node"),nullptr);
@@ -26,6 +27,7 @@ FaceMenu():QMenu(){
     computeFacePlane=std::make_unique<QAction>(tr("Compute Face Plane"));
     convertToPointNode=std::make_unique<QAction>(tr("Convert To Point Node"));
     convertToPointNode->setCheckable(true);
+    endFaceMenu=std::make_unique<QAction>(tr("End Edge Menu"));
     addAction(searchAction.get());
     addAction(computeFacePlane.get());
     addAction(assumeFaceNormal.get());
@@ -35,6 +37,7 @@ FaceMenu():QMenu(){
     addAction(convertAction.get());
     addAction(DrawAction.get());
     addAction(convertToPointNode.get());
+    addAction(endFaceMenu.get());
 }
 };
 

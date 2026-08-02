@@ -32,14 +32,14 @@ NodeSceneMenu(){
     enableDragModeAction->setCheckable(true);
     addAction(deleteNodeAction.get());
     addAction(compileNodesAction.get());
-    addAction(autoCompileAction.get());
+    
     addAction(openFileAction.get());
     addAction(copyNodeAction.get());
     addAction(pasteNodeAction.get());
     addAction(saveFileAction.get());
     addAction(saveAsAction.get());
     addAction(clearAction.get());
-    addAction(enableDragModeAction.get());
+   
     addAction(nodeInfoAction.get());
 
     

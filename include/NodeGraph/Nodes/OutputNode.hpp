@@ -48,14 +48,18 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
     if(portIndex==0){
         OutputAIS_Shape=input;
         auto sh=OutputAIS_Shape.lock();
-        emit OnSendAIS_Shape(sh->Data());
+        Handle(CustomAIS_Shape) shape=new CustomAIS_Shape(sh->Data()->Shape());
+        shape->SetID(sh->Data()->ID());
+        shape->SetMaterialAspect(sh->Data()->Mat());
+        shape->SetColor(sh->Data()->Mat().DiffuseColor());
+        emit OnSendAIS_Shape(shape);
         std::cout<<"An Object Of AIS_Shape is Sent"<<"\n";
         return;
     }
 
     return;
 }
-virtual std::shared_ptr<NodeData> outData(PortIndex const port){
+std::shared_ptr<NodeData> outData(PortIndex const port) override{
     std::shared_ptr<NodeData> ptr;
     return ptr;
 }

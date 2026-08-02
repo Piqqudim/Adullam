@@ -36,7 +36,7 @@ unsigned int nPorts(PortType portType) const override{
     return 0;
 }
 QString caption() const override{
-    return tr("ConvertToAIS_ShapeNode");
+    return tr("Convert To Display");
 }
 QString name() const override{
     return caption();
@@ -46,13 +46,13 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
         case PortType::In:{
             switch(portIndex){
             case 0:
-              return ShapeNodeData(tr("TopoShape")).type();
+              return ShapeNodeData(tr("Input Shape")).type();
         }
         }
         case PortType::Out:{
             switch(portIndex){
             case 0:
-              return AIS_ShapeNodeData(tr("AIS_Shape")).type();
+              return AIS_ShapeNodeData(tr("Display_Shape")).type();
         }
         }
         default:

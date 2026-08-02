@@ -22,7 +22,7 @@ QJsonObject save() const override{
 }
 void load(const QJsonObject& object) override{
     int d=object["IntegerValue"].toInt();
-    SetOutput(d);
+    SetIntData(d);
     return;
 }
 unsigned int nPorts(PortType portType) const override{
@@ -34,6 +34,14 @@ unsigned int nPorts(PortType portType) const override{
            return 0;
     }
     return 0;
+}
+void SetIntData(const int& val){
+    output=val;
+    return;
+}
+void DataUpdated(){
+    emit dataUpdated(0);
+    return;
 }
 void SetOutput(const int& output_1){
     output=output_1;
@@ -67,6 +75,13 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
     }
 }
 std::shared_ptr<NodeData> outData(PortIndex port)  override{
+    if(output_data){
+        output_data->SetData(output);
+    }
+    else{
+        output_data=std::make_shared<IntegerNodeData>(tr(""));
+        output_data->SetData(output);
+    }
     return static_pointer_cast<NodeData>(output_data);
 }
 void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{

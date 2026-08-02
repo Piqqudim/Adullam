@@ -13,7 +13,7 @@ std::unique_ptr<QAction> applyFillet; //this allows you select two edges of the 
 std::unique_ptr<QAction> applyFilletToAll; //this applies to all edges of all wire..
 std::unique_ptr<QAction> chooseVertex;
 std::unique_ptr<QAction> chooseRadius;
-
+std::unique_ptr<QAction> endWireMenu;
 public:
 WireMenu(){
     convertToNode=std::make_unique<QAction>(tr("Convert"));
@@ -28,6 +28,7 @@ WireMenu(){
     convertToPointNode=std::make_unique<QAction>(tr("Convert To Point Node"));
     chooseRadius=std::make_unique<QAction>(tr("Choose Radius"));
     convertToPointNode->setCheckable(true);
+    endWireMenu=std::make_unique<QAction>(tr("End Wire Menu"));
     addAction(convertToNode.get());
     addAction(convertToFace.get());
     addAction(convertToPointNode.get());
@@ -35,6 +36,7 @@ WireMenu(){
     addAction(applyFilletToAll.get());
     addAction(chooseVertex.get());
     addAction(chooseRadius.get());
+    addAction(endWireMenu.get());
 }
 };
 

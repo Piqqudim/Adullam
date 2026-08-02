@@ -3,12 +3,13 @@
 #include<NodeData>
 #include<TopoDS_Shape.hxx>
 #include<Graphic3d_MaterialAspect.hxx>
+#include<DisplayType.hpp>
 using namespace QtNodes;
 class ShapeNodeData:public NodeData{
     private:
     TopoDS_Shape m_Data;
      Graphic3d_MaterialAspect mat_aspect;
-    
+     DISPLAY_TYPE dt=DP_NULL;
     QString m_Name;
     bool hasMaterial=true;  //ByDefault the object has no material
     int Index=-1;
@@ -47,6 +48,13 @@ explicit ShapeNodeData(const TopoDS_Shape& sh){
  }
  TopoDS_Shape Data() const{
     return m_Data;
+ }
+ void SetDisplayType(const DISPLAY_TYPE& dt_1){
+  dt=dt_1;
+  return;
+ }
+ DISPLAY_TYPE displayType() const{
+  return dt;
  }
  void SetIndex(const int& ind){
   Index=ind;
@@ -90,7 +98,7 @@ explicit ShapeNodeData(const TopoDS_Shape& sh){
    mat_aspect=std::move(data.aspect());
    hasMaterial=std::move(data.HasMaterial());
    Index=std::move(data.index());
-   
+   dt=std::move(data.displayType());
    return *this;
  }
  ShapeNodeData& operator=(const ShapeNodeData& shapedata){
@@ -98,6 +106,7 @@ explicit ShapeNodeData(const TopoDS_Shape& sh){
    this->mat_aspect=shapedata.aspect();
    this->hasMaterial=shapedata.HasMaterial();
    this->Index=shapedata.index();
+   this->dt=shapedata.displayType();
    return *this;
  }
 };

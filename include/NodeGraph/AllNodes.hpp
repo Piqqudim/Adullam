@@ -83,7 +83,10 @@
 #include<PrimitiveLineNode.hpp>
 #include<MakeOffsetNode.hpp>
 #include<PrimitiveCircleNode.hpp>
-
+#include<ConvertToFace.hpp>
+#include<RepairWireNode.hpp>
+#include<MirrorNode.hpp>
+#include<MakeOffsetShape.hpp>
 
 
 

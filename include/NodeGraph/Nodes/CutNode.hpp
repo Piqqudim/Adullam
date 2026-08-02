@@ -13,9 +13,16 @@ class CutNode:public NodeDelegateModel,public NodeInitializer{
   TopoDS_Shape outputShape;
   TopoDS_Shape shape1,shape2;
   std::shared_ptr<ShapeNodeData> shape;
+  bool isPortASet=false;
+  bool isPortBSet=false;
   public:
   CutNode(){
 
+  }
+  void SetToFalse() override{
+    isPortASet=false;
+    isPortBSet=false;
+    return;
   }
   QString caption() const override{
     return tr("Cut Node");
@@ -72,18 +79,26 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
             inputShape1=std::dynamic_pointer_cast<ShapeNodeData>(data);
             if(inputShape1.lock()){
               shape1=inputShape1.lock()->Data();
+              isPortASet=true;
               break;
             }
         }
        case 1:{
         inputShape2=std::dynamic_pointer_cast<ShapeNodeData>(data);
         if(inputShape2.lock()){
+            isPortBSet=true;
             shape2=inputShape2.lock()->Data();
         }
        }
     }
-    if(!shape1.IsSame(TopoDS_Shape()) && !shape2.IsSame(TopoDS_Shape())){
+    
         if(shape){
+            if(isPortASet==false){
+                return;
+            }
+            if(isPortBSet==false){
+                return;
+            }
             BRepAlgoAPI_Cut cut(shape1,shape2);
             cut.Build();
             if(cut.IsDone()){
@@ -99,6 +114,12 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         }
         else{
             shape=make_shared<ShapeNodeData>(tr(""));
+            if(isPortASet==false){
+                return;
+            }
+            if(isPortBSet==false){
+                return;
+            }
              BRepAlgoAPI_Cut cut(shape1,shape2);
             cut.Build();
             if(cut.IsDone()){
@@ -112,7 +133,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
                 return;
             }
         }
-    }
+    
     return;
 }
 QWidget* embeddedWidget() override{

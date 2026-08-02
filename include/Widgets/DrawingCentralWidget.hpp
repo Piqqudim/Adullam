@@ -120,7 +120,8 @@
 #include<PrimLineMenu.hpp>
 #include<TransientCircleDialog.hpp>
 #include<PrimCircleMenu.hpp>
-
+#include<cmath>
+#include<CurveParam.hpp>
 //This file will enter 10,000 LOC
 //We have to create a dialog for viewport setting,Drawing widget is also a viewport
 //On Object Creation,deletion,editing,Transform
@@ -171,7 +172,12 @@ DC_WIREFILLET,
 DC_PRIMLINE,
 DC_PRIMARC,
 DC_PRIMCIRCLE,
-DC_TWOPNT
+DC_TWOPNT,
+DC_TWOPNTARC,
+DC_TWOPNTCIRCLE,
+DC_EDGES,
+DC_TRANSFORM,
+DC_APPLYTRANS    //apply the transform after use 
 };
 enum GP_STATE{
  GPS_GATHER,
@@ -193,7 +199,8 @@ CE_POINT,
 CE_AXIS,
 CE_CHAMFER, //for 2d
 CE_FILLET, //for 2d
-CE_DRAFT
+CE_DRAFT,
+CE_CHAXIS
 };
 class DrawingCentralWidget:public QWidget{
 private:
@@ -335,7 +342,7 @@ std::unique_ptr<QAction> arcDraw=std::make_unique<QAction>(tr("Execute Arc"));
 std::unique_ptr<QMenu> editCircleMenu=std::make_unique<QMenu>();
 std::unique_ptr<QAction> editCircleAction=std::make_unique<QAction>(tr("Edit Circle Radius"));//this shows the previous value
 std::unique_ptr<QAction> cancelEditCircle=std::make_unique<QAction>(tr("Destroy"));
-
+std::unique_ptr<QAction> convertToEdgeColl=make_unique<QAction> (tr("Convert To Edges Coll"))
 std::unique_ptr<QMenu> groupCollectionMenu=std::make_unique<QMenu>();
 std::unique_ptr<QAction> groupCollectionAction=std::make_unique<QAction>(tr("Group Selection"));
 std::unique_ptr<QAction> selectEdges=std::make_unique<QAction>(tr("Select Edges"));
@@ -345,6 +352,13 @@ std::unique_ptr<QMenu> groupWireMenu=std::make_unique<QMenu>();
 std::unique_ptr<QAction> deleteGroupWire=std::make_unique<QAction>(tr("Delete"));
 std::unique_ptr<QAction> endGroupWire=std::make_unique<QAction>(tr("End Wire Group Selection"));
 std::unique_ptr<QAction> convertToWires=std::make_unique<QAction>(tr("Convert To Wire Nodes"));
+
+std::unique_ptr<QAction> convertEdgesToWire=std::make_unique<QAction>(tr("Edges To Wire"));
+std::unique_ptr<QAction> deleteAllEdges=std::make_unique<QAction>(tr("Delete Edges"));
+std::unique_ptr<QAction> endGroupSelection=std::make_unique<QAction>(tr("End Selection"));
+std::unique_ptr<QMenu> edgesMenu=make_unique<QMenu>(); 
+
+
 
 std::unique_ptr<QAction> updateWithTransform=std::make_unique<QAction>(tr("Update"));
 std::unique_ptr<DrawBezierDialog> drawBezierDialog=std::make_unique<DrawBezierDialog>();
@@ -388,6 +402,69 @@ std::unique_ptr<EditArcDialog> editarcDialog=std::make_unique<EditArcDialog>();
 std::unique_ptr<TransientLineDialog> transLineDialog=std::make_unique<TransientLineDialog>();
 std::unique_ptr<QAction> selectWires=std::make_unique<QAction>(tr("Select Wires"));
 std::unique_ptr<TransientCircleDialog> transCircleDialog=std::make_unique<TransientCircleDialog>();
+//For Special transform,whereby a user clicks a point on the selected object that is not the center and perform transformation about that selected point; (For geometry continutiy).
+std::unique_ptr<QAction>  TransformAction;
+std::unique_ptr<QMenu> TransformMenu;
+std::unique_ptr<QAction> setFixed=std::make_unique<QAction>(tr("Set Fixed")); //this allows us to select a point on the object and perform transform about that object
+std::unique_ptr<QAction> applyTransform;
+std::unique_ptr<QAction> endTransform;
+std::unique_ptr<QAction> redisplayGizmo=std::make_unique<QAction>(tr("Display Gizmo"));
+
+
+//ZBuffer- depth;
+std::unique_ptr<QMenu> zbufferMenu;
+std::unique_ptr<QAction> zbufferAction;
+std::unique_ptr<QAction> topMostAction;
+std::unique_ptr<QAction> defaultAction;
+std::unique_ptr<QAction> topAction;
+//Z Buffer Depth end;
+
+//my Transformation 
+
+Handle(AIS_Shape) myTransShape;
+std::unique_ptr<QMenu> transMenu;
+std::unique_ptr<QAction> transAction;
+std::unique_ptr<QAction> setShapeFixed;
+std::unique_ptr<QAction> transStartPoint;
+std::unique_ptr<QAction> transEndPoint;
+std::unique_ptr<QAction> computeTrans;
+std::unique_ptr<QAction> applyTransObject;
+std::unique_ptr<QAction> endApply;
+
+//Draw Arc by Specifying Two Points
+std::unique_ptr<QMenu> twoPntArcMenu;
+std::unique_ptr<QAction> twoPntArcAction;
+std::unique_ptr<QAction> arcFirstPoint;
+std::unique_ptr<QAction> arcSecondPoint;
+
+std::unique_ptr<QAction> buildArc;
+std::unique_ptr<QAction> endBuildArc;
+//End Draw Arc by Specifying two points
+
+//Draw Circle by specifying two points
+std::unique_ptr<QMenu> twoPntCircleMenu;
+std::unique_ptr<QAction> twoPntCircleAction;
+std::unique_ptr<QAction> circleFirstPoint;
+std::unique_ptr<QAction> circleSecondPoint;
+std::unique_ptr<QAction> buildCircle;
+std::unique_ptr<QAction> endBuildCircle;
+std::unique_ptr<QAction> convertBuiltCircle; //convert the built circle to circle primitive node
+
+//this one allows us to choose axis of direction,you can choose Axis from any selection entity like face and edge,or choose axis 
+/*
+we can either choose axis from 
+
+*/
+std::unique_ptr<QAction> chooseAxis; 
+std::unique_ptr<QMenu> chooseAxisMenu;
+std::unique_ptr<QAction> setFaceFixed;
+std::unique_ptr<QAction> defaultX; //X direction(1,0,0)
+std::unique_ptr<QAction> defaultY; //Y direction(0,1,0)
+std::unique_ptr<QAction> defaultZ; //Z direction (0,0,1);
+std::unique_ptr<QAction> chooseFace; //to compute surface normal
+std::unique_ptr<QAction> chooseFaceNormal;
+std::unique_ptr<QAction> endChooseAxis;//ce_chaxis
+//gp_Dir chDir=SURFACE::GetFaceNormal(selFace,selFacePoint);
 
 MANIP_CURVE manipcurve=MC_NULL;
 bool IsShapePrsAdded=false;   //this is to keep track of whether shape presentation menu item has been added
@@ -398,7 +475,7 @@ QAction* LinePrsAction=nullptr;
 bool IsLinePrsAdded=false;  //thus is to keep track of whether lineprsaction is added to SelectedMenu or not
 gp_Pnt CircleFirstPoint;
 gp_Pnt CircleSecondPoint;
-gp_Pnt CircleThirdPoint;
+gp_Pnt CircleThirdPoint;H
 TopoDS_Shape SelectedShape;
 QMenu* DockMenus=nullptr;
 QAction* showSettingAction=nullptr;
@@ -500,6 +577,8 @@ gp_Trsf SentTransform;  //this is the transform that is sent from drawing widget
 size_t objectCount=0;
 std::unordered_map<size_t,Handle(CustomAIS_Shape)> Shapes;
 std::unordered_map<size_t,Handle(AIS_Shape)> DraftShapes; //for every 2d shapes that will be rendered in the scene...
+std::vector<std::shared_ptr<CurveParam>> curveparams;
+std::vector<TopoDS_Shape> LoadedShapes; //used by step file reader,iges reader, brep reader
 Graphic3d_MaterialAspect prevChosenMat;
 Graphic3d_MaterialAspect chosenShapeMaterial;
 size_t ChosenId=0;
@@ -542,6 +621,19 @@ GP_STATE gpsstate=GPS_NULL;
 Handle(Image_AlienPixMap) nodeImage;
 Handle(AIS_TexturedShape) textureShape;
 Handle(AIS_TexturedShape) selTextureShape;
+bool isFixed=false; //this is used when we want the position tobe fixed when using transform
+bool isTransFixed=false; //this is used to stop the user from clicking any other shape apart from the one selected 
+//Parameters To Modify Object Transform at position that isn not the center of the object
+gp_Trsf objectTrans=gp_Trsf();
+gp_Pnt GizmoStartPosition=gp_Pnt();
+gp_Pnt gottenPos;//this will be a point that is unchanged when isFixed is set to false;
+int prevMode=-1;
+//For choosing axis
+gp_Dir gottenDir;
+TopoDS_Face ChosenAxisFace;
+bool isFaceFixed=false;
+//end of choosen axis
+gp_Ax2 gottenAxis;
 
 public:
   DrawingCentralWidget(QWidget* parent_widget):QWidget(parent_widget){
@@ -603,8 +695,34 @@ public:
     ShapePrsAction=new QAction(tr("Object Presentation"),nullptr);
     LinePrsAction=new QAction(tr("Line Presentation"),nullptr);
     ShapeTypeAction=std::make_unique<QAction>(tr("Show Shape Type"),nullptr);
-    
-    ConstructTransformNodeAction=std::make_unique<QAction>(tr("Convert To TransformNode"),nullptr);
+    //z buffer info
+    zbufferMenu=std::make_unique<QMenu>();
+    zbufferAction=std::make_unique<QAction>(tr("Depth Info"));
+    zbufferAction->setMenu(zbufferMenu.get());
+    topMostAction=std::make_unique<QAction>(tr("Top Most "));
+    topMostAction->setCheckable(true);
+    defaultAction=std::make_unique<QAction>(tr("Default Depth"));
+    defaultAction->setCheckable(true);
+    topAction=std::make_unique<QAction>(tr("Top Depth"));
+    topAction->setCheckable(true);
+
+    zbufferMenu->addAction(topMostAction.get());
+    zbufferMenu->addAction(defaultAction.get());
+    zbufferMenu->addAction(topAction.get());
+
+  TransformAction=std::make_unique<QAction>("Apply Transform Relative To Point");
+  TransformAction->setCheckable(true);
+  TransformMenu=std::make_unique<QMenu>();
+  applyTransform=std::make_unique<QAction>(tr("Apply Transform"));
+  endTransform=std::make_unique<QAction>(tr("End Transform"));
+  setFixed->setCheckable(true);
+  TransformMenu->addAction(setFixed.get()); //this is used when we want to transform the object at that specified position  
+  TransformMenu->addAction(applyTransform.get());
+  TransformMenu->addAction(redisplayGizmo.get());
+  TransformMenu->addAction(endTransform.get());
+
+
+   ConstructTransformNodeAction=std::make_unique<QAction>(tr("Convert To TransformNode"),nullptr);
      ConstructTransformNodeAction->setCheckable(true);
       ConstructPointNodeAction=std::make_unique<QAction>(tr("Convert To Point Node"));
  ConstructPointNodeAction->setCheckable(true);
@@ -631,7 +749,9 @@ public:
     SelectedMenu->addAction(ScaleAction);
     SelectedMenu->addAction(RotateAction);
     SelectedMenu->addAction(TranslateAction);
+    SelectedMenu->addAction(zbufferAction.get());
     SelectedMenu->addAction(DeleteObjectGizmoAction);
+     SelectedMenu->addAction(TransformAction.get());
     SelectedMenu->addAction(ShapeTypeAction.get());
     SelectedMenu->addAction(ConstructPointNodeAction.get());
     SelectedMenu->addAction(ConstructTransformNodeAction.get());
@@ -705,19 +825,102 @@ public:
   LineMenu->addAction(viewAxis.get());
   LineMenu->addAction(convertToAxis.get());
   LineMenu->addAction(convertToLength.get());
+   
+  edgesMenu->addAction(convertEdgesToWire.get());
+  edgesMenu->addAction(endGroupSelection.get());
+   
+  transMenu=std::make_unique<QMenu>();
+  transAction=std::make_unique<QAction>(tr("Apply Relative Transform"));
+  transAction->setCheckable(true);
+  setShapeFixed=std::make_unique<QAction>(tr("Set Fixed"));
+  setShapeFixed->setCheckable(true);
+  transStartPoint=std::make_unique<QAction>(tr("Select First Point"));
+  transEndPoint=std::make_unique<QAction>(tr("Select Second Point"));
+   transStartPoint->setCheckable(true);
+   transEndPoint->setCheckable(true);
+   computeTrans=std::make_unique<QAction>(tr("Compute"));
+   applyTransObject=std::make_unique<QAction>(tr("Apply Transform To Object"));
+   endApply=std::make_unique<QAction>(tr("End"));
+  transMenu->addAction(setShapeFixed.get());
+  transMenu->addAction(transStartPoint.get());
+  transMenu->addAction(transEndPoint.get());
+  transMenu->addAction(computeTrans.get());
+  transMenu->addAction(applyTransObject.get());
+  transMenu->addAction(endApply.get());
+  
 
+  twoPntArcMenu=std::make_unique<QMenu>();
+  twoPntArcAction=std::make_unique<QAction>(tr("Two Point Arc"));
+  arcFirstPoint=std::make_unique<QAction>(tr("First Point"));
+  twoPntArcAction->setCheckable(true);
+  arcFirstPoint->setCheckable(true);
+  arcSecondPoint=std::make_unique<QAction>(tr("Second Point"));
+  arcSecondPoint->setCheckable(true);
+  buildArc=std::make_unique<QAction>(tr("Build Arc"));
+  endBuildArc=std::make_unique<QAction>(tr("End Build"));
+  
+  twoPntArcMenu->addAction(arcFirstPoint.get());
+  twoPntArcMenu->addAction(arcSecondPoint.get());
+  twoPntArcMenu->addAction(buildArc.get());
+  twoPntArcMenu->addAction(endBuildArc.get());
 
+  twoPntCircleMenu=std::make_unique<QMenu>();
+  twoPntCircleAction=make_unique<QAction>(tr("Two Point Circle"));
+  twoPntCircleAction->setCheckable(true);
+  circleFirstPoint=make_unique<QAction>(tr("First Point"));
+  circleSecondPoint=make_unique<QAction>(tr("Second Point"));
+   circleFirstPoint->setCheckable(true);
+   circleSecondPoint->setCheckable(true);
+  buildCircle=std::make_unique<QAction>(tr("Build"));
+  endBuildCircle=std::make_unique<QAction>(tr("End"));
+  convertBuiltCircle=std::make_unique<QAction>(tr("Convert To Primitive Circle"));
+  convertBuiltCircle->setCheckable(true);
+  twoPntCircleMenu->addAction(circleFirstPoint.get());
+  twoPntCircleMenu->addAction(circleSecondPoint.get());
+  twoPntCircleMenu->addAction(buildCircle.get());
+  twoPntCircleMenu->addAction(endBuildCircle.get());
+  twoPntCircleMenu->addAction(convertBuiltCircle.get());
 
-
-
-
+  
+  chooseAxis=std::make_unique<QAction>(tr("Choose Axis"));
+  chooseAxis->setCheckable(true);
+  chooseAxisMenu=make_unique<QMenu>();
+  defaultX=std::make_unique<QAction>(tr("Use Default X axis"));
+  defaultX->setCheckable(true);
+  defaultY=make_unique<QAction>(tr("Use Default Y axis"));
+  defaultY->setCheckable(true);
+  defaultZ=make_unique<QAction>(tr("Use Default Z axis"));
+  defaultZ->setCheckable(true);
+  chooseFace=make_unique<QAction>(tr("Choose Face"));
+  chooseFace->setCheckable(true);
+  chooseAxisMenu->addAction(defaultX.get());
+  chooseAxisMenu->addAction(defaultY.get());
+  chooseAxisMenu->addAction(defaultZ.get());
+  chooseAxisMenu->addAction(chooseFace.get());
+  endChooseAxis=std::make_unique<QAction>(tr("End"));
+  setFaceFixed=make_unique<QAction>(tr("Set Face Fixed"));
+  setFaceFixed->setCheckable(true);
+  //this should be used when choose axis menu has been called
+  chooseFaceNormal=std::make_unique<QAction>("Compute Surface Normal");
+  chooseAxisMenu->addAction(chooseFaceNormal.get());
+  chooseAxisMenu->addAction(chooseFace.get());
+  chooseAxisMenu->addAction(endChooseAxis.get());
+  edgeFilletMenu->addAction(chooseAxis.get());
+  wireFilletMenu->addAction(chooseAxis.get());
+  wireMenu->addAction(convertToEdgeColl.get());
+  convertToEdgeColl->setCheckable(true);
+   twoPntCircleMenu->addAction(chooseAxis.get());
+   twoPntArcMenu->addAction(chooseAxis.get());
     DockMenus->addAction(showSettingAction);
     DockMenus->addAction(transientPrimitiveAction.get());
     DockMenus->addAction(createMaterialNode.get());
     DockMenus->addAction(UndoAction);
     DockMenus->addAction(RedoAction);
+    DockMenus->addAction(transAction.get());
     DockMenus->addAction(ConstructPointNodeAction.get());
     DockMenus->addAction(convertPointAction.get());
+    DockMenus->addAction(twoPntArcAction.get());
+    DockMenus->addAction(twoPntCircleAction.get());
     DockMenus->addAction(refreshAction.get());
     DockMenus->addAction(drawAction.get());
     DockMenus->addAction(arcMenuAction.get());
@@ -980,8 +1183,44 @@ view->MustBeResized();
  connect(convertToAxis.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleTwoPointAxis);
  connect(viewLength.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleViewLength);
  connect(viewAxis.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleViewAxis);
- 
- 
+ connect(convertEdgesToWire.get(),&QAction::triggered,this,&DrawingCentralWidget::OnConvertSetEdgesToWire);
+ connect(endGroupSelection.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleGroupSelectionForEdges);
+ connect(TransformAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnStartTransform);
+ connect(endTransform.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleEndTransform);
+ connect(applyTransform.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleApplyTransform);
+ connect(setFixed.get(),&QAction::toggled,this,&DrawingCentralWidget::SetFixedState);
+ connect(redisplayGizmo.get(),&QAction::triggered,this,&DrawingCentralWidget::RedisplayGizmo);
+ connect(defaultAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleDefaultDepth);
+ connect(topAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleTopDepth);
+ connect(topMostAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleTopMostDepth);
+ connect(transStartPoint.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleTransFirstPoint);
+ connect(transEndPoint.get(),&QAction::toggled,this,DrawingCentralWidget::OnHandleTransSecondPoint);
+ connect(setShapeFixed.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleTransFixed);
+ connect(computeTrans.get(),&QAction::triggered,this,&DrawingCentralWidget::ComputeTransformForHandle);
+ connect(applyTransObject.get(),&QAction::triggered,this,&DrawingCentralWidget::ApplyTransToTopoDS_Shape);
+ connect(endApply.get(),&QAction::triggered,this,&DrawingCentralWidget::OnEndTransShape);
+ connect(transAction.get(),&QAction::toggled,this,DrawingCentralWidget::OnStartTransShape);
+ connect(twoPntArcAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleTwoPntArc);
+ connect(arcFirstPoint.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleFirstArcPoint);
+ connect(arcSecondPoint.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleArcSecondPoint);
+ connect(buildArc.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleBuildArc);
+ connect(endBuildArc.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleEndBuildArc);
+ connect(twoPntCircleAction.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleTwoPointCircle);
+ connect(circleFirstPoint.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleCircleFirstPoint);
+ connect(circleSecondPoint.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleCircleSecondPoint);
+ connect(buildCircle.get(),&QAction::triggered,this,&DrawingCentralWidget::OnHandleBuildCircle);
+ connect(endBuildCircle.get(),&QAction::triggered,this,&DrawingCentralWidget::OnEndBuildCircle);
+ connect(chooseFace.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleSelectedFace);
+ connect(endChooseAxis.get(),&QAction::triggered,this,&DrawingCentralWidget::EndChooseAxis);
+ connect(setFaceFixed.get(),&QAction::toggled,this,&DrawingCentralWidget::OnHandleSetFixedFace);
+ connect(defaultX.get(),&QAction::toggled,this,&DrawingCentralWidget::OnChooseDefaultX);
+ connect(defaultY.get(),&QAction::toggled,this,&DrawingCentralWidget::OnChooseDefaultY);
+ connect(defaultZ.get(),&QAction::toggled,this,&DrawingCentralWidget::OnChooseDefaultZ);
+ connect(chooseFaceNormal.get(),&QAction::triggered,this,&DrawingCentralWidget::OnComputeSurfaceNormal);
+ connect(chooseAxis.get(),&QAction::toggled,this,&DrawingCentralWidget::OnStartChooseAxis);
+ connect(edgeMenu->endEdgeMenu.get(),QAction::triggered,this,&DrawingCentralWidget::EndEdgeMenu);
+ connect(faceMenu->endFaceMenu.get(),&QAction::triggered,this,&DrawingCentralWidget::EndFaceMenu);
+ connect(wireMenu->endWireMenu.get(),&QAction::triggered,this,&DrawingCentralWidget::EndWireMenu);
  return;
 
 }
@@ -1565,6 +1804,7 @@ void DisplayObject(const Handle(CustomAIS_Shape)& object){
     if(object->Shape().ShapeType()<=TopAbs_FACE){
     Shapes[object->ID()]=object;
     Shapes.at(object->ID())->SetID(object->ID());
+    Shapes.at(object->ID())->SetMaterialAspect(object->Mat());
     context->Display(Shapes.at(object->ID()),true);
     }
     else{
@@ -1594,10 +1834,36 @@ void DisplayObject(const Handle(CustomAIS_Shape)& object){
     context->Redisplay(viewcube,false);
    }
   for(const auto& shape: shapes){
+   switch(shape->dt){
+   case DP_MIRROR:{
+  if(shape->Shape().ShapeType()<=TopAbs_FACE){
+    if(Shapes.find(shape->ID())==Shapes.end()){
+       Shapes[shape->ID()]=shape;
+       context->Display(Shapes.at(shape->ID()),false);
+    }
+   Shapes.at(shape->ID())->SetShape(shape->Shape()); 
+   Shapes.at(shape->ID())->SetMaterialAspect(shape->Mat());
+   Shapes.at(shape->ID())->SetColor(shape->Mat().DiffuseColor());
+   Shapes.at(shape->ID())->dt=shape->dt;
+   context->Redisplay(Shapes.at(shape->ID()),false);
+   }
+   else{
+    if(Shapes.find(shape->ID())==Shapes.end()){
+       Shapes[shape->ID()]=shape;
+       context->Display(Shapes.at(shape->ID()),false);
+    }
+    Shapes.at(shape->ID())->SetShape(shape->Shape());
+    Shapes.at(shape->ID())->SetColor(shape->Mat().DiffuseColor());
+    Shapes.at(shape->ID())->dt=shape->dt; //set display type to dp_mirror(that is, the shape is a mirror);
+    context->Redisplay(Shapes.at(shape->ID()),false);
+   }
+   }
+   case DP_NULL:{
    if(Shapes.find(shape->ID())!=Shapes.end()){
    if(shape->Shape().ShapeType()<=TopAbs_FACE){
    Shapes.at(shape->ID())->SetShape(shape->Shape()); 
    Shapes.at(shape->ID())->SetMaterialAspect(shape->Mat());
+   Shapes.at(shape->ID())->SetColor(shape->Mat().DiffuseColor());
     context->Redisplay(Shapes.at(shape->ID()),false);
    }
    else{
@@ -1611,6 +1877,8 @@ void DisplayObject(const Handle(CustomAIS_Shape)& object){
     if(shape->Shape().ShapeType()<=TopAbs_FACE){
     Shapes[shape->ID()]=shape;
     Shapes.at(shape->ID())->SetID(shape->ID());
+    Shapes.at(shape->ID())->SetMaterialAspect(shape->Mat());
+    Shapes.at(shape->ID())->SetColor(shape->Mat().DiffuseColor());
     context->Display(Shapes.at(shape->ID()),false);
     }
     else{
@@ -1624,7 +1892,10 @@ void DisplayObject(const Handle(CustomAIS_Shape)& object){
       LoadMessage(tr(""),tr("ID is negative"));
     }
    }
+   break;
   }
+  }
+ }
   view->Redraw();
 
   return;
@@ -1937,8 +2208,9 @@ void mousePressEvent(QMouseEvent* event) override{
  if(event->button()==Qt::LeftButton){
     
     if(context->MoveTo(static_cast<int>(std::lround(event->pos().x()*dpr)),static_cast<int>(std::lround(event->pos().y()*dpr)),view,false)==AIS_SOD_Nothing){
-     
+     if(dc!=DC_TRANSFORM){
      curveShape.Nullify();
+     }
      lineShape.Nullify();
      circShape.Nullify();
      editShape.Nullify();
@@ -2027,14 +2299,22 @@ void mousePressEvent(QMouseEvent* event) override{
          
           IsSelectedColorUsed=false;
           SentTransform=gp_Trsf();
-          
+          if(dc!=DC_TRANSFORM){
           ChosenShape.Nullify();
+          }
       }
       
-       if(!ObjectGizmo.IsNull()){
-      ObjectGizmo->Detach();
+      if(!ObjectGizmo.IsNull()){
+       if(dc==DC_TRANSFORM){
+         if(context->IsDisplayed(ObjectGizmo)){
+          context->Redisplay(ObjectGizmo,true);
+         }
+       }
+       else{
+       ObjectGizmo->Detach();
       if(context->IsDisplayed(ObjectGizmo)){
         context->Erase(ObjectGizmo,true);
+      }
       }
      }
      emit OnDestroyMaterialProp();
@@ -2042,10 +2322,7 @@ void mousePressEvent(QMouseEvent* event) override{
      emit OnSetPreviousColor();
         
       
-     UnHighlight(selShape,PrevSelMode);
-     if(context->IsDisplayed(selShape)){
-         context->Redisplay(selShape,true);
-     }
+     
      PrevSelMode=-1;
    if(context->IsDisplayed(pointMarker)){
     context->Remove(pointMarker,true);
@@ -2151,16 +2428,26 @@ void mousePressEvent(QMouseEvent* event) override{
           LoadMessage(tr(""),tr("Cannot Cast to wire"));
           return;
         }
+        try{
         wireselector->SetSelectedWire(selWire);
         auto pnt=context->MainSelector()->PickedPoint(1);
         LineStartPoint=pnt;
          SelectPoint(LineStartPoint);
+         if(dc==DC_TRANSFORM){
+         OnPositionGizmo();
+         }
         st1=WIRE_SELECT;
         wireselector->SelectWire();
         x_value=LineStartPoint.X();
         y_value=LineStartPoint.Y();
         z_value=LineStartPoint.Z();
         return;
+      }
+      catch(const Standard_OutOfRange& r){
+        cout<<"Did not intersect with the wire"<<"\n";
+         FlushViewEvent();
+       return;
+       }
       }
       return;
       }
@@ -2192,6 +2479,9 @@ void mousePressEvent(QMouseEvent* event) override{
       }
       LineStartPoint=pnt;
        SelectPoint(LineStartPoint);
+        if(dc==DC_TRANSFORM){
+         OnPositionGizmo();
+         }
       Handle(Geom_Point) geom_pnt=new Geom_CartesianPoint(pnt.X(),pnt.Y(),pnt.Z());
       pointMarker->SetComponent(geom_pnt);
 
@@ -2327,8 +2617,12 @@ void mousePressEvent(QMouseEvent* event) override{
        try{
        gp_Pnt selectedPoint=context->MainSelector()->PickedPoint(1);
        selFacePoint=selectedPoint;
+       SetFaceFixed(selFace);
        LineStartPoint=selectedPoint;
         SelectPoint(LineStartPoint);
+         if(dc==DC_TRANSFORM){
+         OnPositionGizmo();
+         }
         int_x=selectedPoint.X();
         int_y=selectedPoint.Y();
         int_z=selectedPoint.Z();
@@ -2375,6 +2669,7 @@ void mousePressEvent(QMouseEvent* event) override{
     }
     if(CurrentSelMode==2){ //for edge
         if(selectEdges->isChecked()){
+        try{
         Handle(SelectMgr_EntityOwner) owner=context->SelectedOwner();
         if(!owner){
            std::cout<<"Failed To Cast To an object of SelectMgr_EntityOwner"<<"\n";
@@ -2385,15 +2680,17 @@ void mousePressEvent(QMouseEvent* event) override{
           cout<<"Failed To Cast"<<"\n";
         } 
       selShape=Handle(CustomAIS_Shape)::DownCast(obShape);
-      if(selShape){
+      if(!selShape){
         
         std::cout<<"Failed to cast to an object of CustomAIS_Shape"<<"\n";
+      return;
       }
       else{
       selCurveShape=Handle(CurveAIS_Shape)::DownCast(obShape);
-      if(selCurveShape){
+      if(!selCurveShape){
         
         std::cout<<"Converted To an object of CurveAIS_Shape"<<"\n";
+        return;
       }
       }
        Handle(StdSelect_BRepOwner) selectedEntity=Handle(StdSelect_BRepOwner)::DownCast(owner);
@@ -2424,9 +2721,15 @@ void mousePressEvent(QMouseEvent* event) override{
       else{
         edgeselectors->AddToSelection(selCurveShape,selEdge);
       }
+      dc=DC_EDGES;
+        }
+        catch(const Standard_OutOfRange& errorrange){
+          return;
+        }
       return;
       }
       else{
+        try{
         edgeselector->UnSelectEdge();
          Handle(SelectMgr_EntityOwner) owner=context->SelectedOwner();
         if(!owner){
@@ -2438,6 +2741,7 @@ void mousePressEvent(QMouseEvent* event) override{
           cout<<"Failed To Cast"<<"\n";
         } 
       selShape=Handle(CustomAIS_Shape)::DownCast(obShape);
+      
       if(selShape){
          edgeselector->SetSelectedShape(selShape);
         std::cout<<"Failed to cast to an object of CustomAIS_Shape"<<"\n";
@@ -2489,9 +2793,13 @@ void mousePressEvent(QMouseEvent* event) override{
         std::cout<<"Second Edge Chosen"<<endl;
         }
         st1=EDGE_SELECT;
+        
          gp_Pnt selectedPoint=context->MainSelector()->PickedPoint(1);
          LineStartPoint=selectedPoint;
          SelectPoint(LineStartPoint);
+        if(dc==DC_TRANSFORM){
+           OnPositionGizmo();
+         }
          int_x=selectedPoint.X();
          int_y=selectedPoint.Y();
          int_z=selectedPoint.Z();
@@ -2509,6 +2817,12 @@ void mousePressEvent(QMouseEvent* event) override{
         edgeselector->SelectEdge();
          FlushViewEvent();
          return;
+         }
+         catch(const Standard_OutOfRange& r){
+        cout<<"Did not intersect with the edge"<<"\n";
+         FlushViewEvent();
+       return;
+       }
         }
     }
       
@@ -2575,7 +2889,7 @@ void mousePressEvent(QMouseEvent* event) override{
           return;
          }
         }
-        catch(const Standard_DomainError& error){
+        catch(Standard_Failure& error){
         LoadMessage(tr(""),tr("Invalid Index,Choose a part close the sphere to perform translation"));
         return;
         }
@@ -2587,34 +2901,19 @@ void mousePressEvent(QMouseEvent* event) override{
         evt_manager.UpdateMousePosition(Graphic3d_Vec2i(static_cast<int>(std::lround(event->pos().x()*dpr)),static_cast<int>(std::lround(event->pos().y()*dpr))),ToQtMouseButton(event->button()),ToNativeModifiers(Qt::NoModifier),false);
         std::cout<<"Before Transform"<<"\n";
         try{
+        
         ObjectGizmo->StartTransform(static_cast<int>(std::lround(event->pos().x()*dpr)),static_cast<int>(std::lround(event->pos().y()*dpr)),view);
-        lineShape=Handle(LineAIS_Shape)::DownCast(ObjectGizmo->Object());
-        if(lineShape){
-          editShape=lineShape->MidPointMarker();
-          if(!editShape){
-             lineShape->OnDisplayEditComp(lineShape);
-             editShape=lineShape->MidPointMarker();
-          }
-            SetGizmoStateForEditShape();
-            OnUpdateTransformForEditCircleShape(editShape);
-           ObjectGizmo->SetPosition(gp_Ax2(currGizmoPos,gp_Dir(1.0,0.0,0.0)));
-           return;
-        }
-        circShape=Handle(CircleAIS_Shape)::DownCast(ObjectGizmo->Object());
-        if(circShape){
-           editShape=circShape->GetCenterMarker();
-           if(!editShape){
-              circShape->OnDisplayComponent(circShape);
-              editShape=circShape->GetCenterMarker();
-           }
-           SetGizmoStateForEditShape();
-           OnUpdateTransformForEditCircleShape(editShape);
-           ObjectGizmo->SetPosition(gp_Ax2(currGizmoPos,gp_Dir(1.0,0.0,0.0)));
-           return;
+        if(dc==DC_TRANSFORM){
+        OnPositionGizmo();
+        objectTrans=GetObjectTransform();
+         GizmoStartPosition=ConvertToObjectSpace(gottenPos);
+        isObjectTransformed=true;
+          return;
         }
         
+        
         }
-        catch(const Standard_DomainError& error){
+        catch(Standard_Failure& error){
         LoadMessage(tr(""),tr("Invalid Index,Choose a part close the sphere to perform translation"));
         return;
         }
@@ -2634,9 +2933,14 @@ void mousePressEvent(QMouseEvent* event) override{
   chosenInteractive=object;
      if(!object.IsNull()){
       QString str=QString(tr("Object is Selected"));
+      if(dc==DC_TRANSFORM){
+        DisplayAtPivot();
+      }
+      else{
       SetGizmoForWholeObject();
       DisplayGizmoOnObject(object); //
       CheckDisplayStatus(ObjectGizmo,context->DisplayStatus(ObjectGizmo));
+      }
       Handle(AIS_Shape) tmpshape=Handle(AIS_Shape)::DownCast(object);
       if(selectShapes->isChecked()){
         if(tmpshape){
@@ -2657,7 +2961,8 @@ void mousePressEvent(QMouseEvent* event) override{
     if(!OShape.IsNull()){
      //ChosenShape still points to the same object as owner->Selectable()
        ChosenShape=OShape;    //Single Selection for Object
-      
+      SetTransShape(ChosenShape);
+      GetDepthInfo(ChosenShape);
      cm=CE_SHAPE;
      IsSelectedColorUsed=true;
      view->Redraw();
@@ -2668,7 +2973,8 @@ void mousePressEvent(QMouseEvent* event) override{
     else{
       curveShape=Handle(CurveAIS_Shape)::DownCast(object);
       if(curveShape){
-      
+        SetTransShape(curveShape);
+        GetDepthInfo(curveShape);
         cm=CE_SHAPE;
         return;
       }
@@ -2680,6 +2986,8 @@ void mousePressEvent(QMouseEvent* event) override{
       }
       selTextureShape=Handle(AIS_TexturedShape)::DownCast(object);
       if(selTextureShape){
+      SetTransShape(selTextureShape);
+      GetDepthInfo(selTextureShape);
       cm=CE_SHAPE;
        return;
       }
@@ -2691,6 +2999,34 @@ void mousePressEvent(QMouseEvent* event) override{
  }
 }     
 else if(event->button()==Qt::RightButton){
+  if(dc==DC_TWOPNTARC){
+     if(cm==CE_CHAXIS){
+      chooseAxisMenu->exec(event->globalPosition().toPoint());
+      return;
+     }
+    twoPntArcMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
+  if(dc==DC_TWOPNTCIRCLE){
+     if(cm==CE_CHAXIS){
+      chooseAxisMenu->exec(event->globalPosition().toPoint());
+      return;
+     }
+     twoPntCircleMenu->exec(event->globalPosition().toPoint());
+     return;
+  }
+  if(dc==DC_APPLYTRANS){
+    transMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
+  if(dc==DC_TRANSFORM){
+    TransformMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
+  if(dc==DC_EDGES){
+    edgesMenu->exec(event->globalPosition().toPoint());
+    return;
+  }
   if(dc==DC_TWOPNT){
     LineMenu->exec(event->globalPosition().toPoint());
     return;
@@ -2731,6 +3067,10 @@ if(Eshape==ES_GIZMO){
     return;
   }
   if(dc==DC_WIREFILLET){
+     if(cm==CE_CHAXIS){
+      chooseAxisMenu->exec(event->globalPosition().toPoint());
+      return;
+     }
     wireFilletMenu->exec(event->globalPosition().toPoint());
     return;
   }
@@ -2743,6 +3083,10 @@ if(Eshape==ES_GIZMO){
     return;
   }
   if(dc==DC_FILLET){
+    if(cm==CE_CHAXIS){
+      chooseAxisMenu->exec(event->globalPosition().toPoint());
+      return;
+     }
     edgeFilletMenu->exec(event->globalPosition().toPoint());
     return;
   }
@@ -2902,7 +3246,7 @@ if(cm==CE_NULL){
 
 
 }
- 
+
 return;
  }
 }
@@ -2956,6 +3300,13 @@ void mouseMoveEvent(QMouseEvent* event) override{
       return;
     }
     if(isObjectTransformed && ObjectGizmo->HasActiveMode()){
+      if(dc==DC_TRANSFORM){
+      ObjectGizmo->Transform(static_cast<int>(std::lround(event->pos().x()*dpr)),static_cast<int>(std::lround(event->pos().y()*dpr)),view);
+      OnUpdateObjectPosition();
+      view->Invalidate(); 
+      return;
+      }
+      
       ObjectGizmo->Transform(static_cast<int>(std::lround(event->pos().x()*dpr)),static_cast<int>(std::lround(event->pos().y()*dpr)),view);
       context->Redisplay(ObjectGizmo->Object(),true);
       view->Invalidate(); //force the redraw of the scene...
@@ -3211,6 +3562,7 @@ signals:
   void EmitFloatValue(const float& val);
   void EmitLineValue(const gp_Dir& dir,const gp_Pnt& point,const float& val);
   void EmitCircleValue(const gp_Ax2& axis,const float& radius);
+   void EmitEdgeColl();
 public slots:
 //This returns the top view
 void SetDrawCircleAction(bool toggled){
@@ -3219,6 +3571,10 @@ void SetDrawCircleAction(bool toggled){
 }
 void OnDeleteObject(bool toggled=false){
   if(!ChosenShape.IsNull()){
+    if(ChosenShape->dt==DP_MIRROR){
+      UndoStack->push(new DeleteCommand(ChosenShape,context,0,3));
+
+    }
     UndoStack->push(new DeleteCommand(ChosenShape,context,0,3));
     if(!Shapes.empty()){
     for(auto iter=Shapes.begin();iter!=Shapes.end();++iter){
@@ -3228,6 +3584,7 @@ void OnDeleteObject(bool toggled=false){
     }
     }
     context->Remove(ChosenShape,false);
+    UndoStack->push(new DeleteCommand(ChosenShape,context,0,1));
     if(context->IsDisplayed(currSelShape)){
       context->Remove(currSelShape,false);
     }
@@ -3257,6 +3614,7 @@ void OnDeleteObject(bool toggled=false){
       }
         if(context->IsDisplayed(curveShape)){
           context->Remove(curveShape,true);
+          UndoStack->push(new DeleteCommand(curveShape,context,0,1));
           lineShape=Handle(LineAIS_Shape)::DownCast(curveShape);
           if(lineShape){
             lineShape->DeleteMarkers();
@@ -3281,6 +3639,7 @@ void OnDeleteObject(bool toggled=false){
       if(selTextureShape){
        
         context->Remove(selTextureShape,false);
+        UndoStack->push(new DeleteCommand(selTextureShape,context,0,3));
         if(ObjectGizmo->IsAttached()){
            ObjectGizmo->Detach();
            context->Erase(ObjectGizmo,false);
@@ -3293,6 +3652,7 @@ void OnDeleteObject(bool toggled=false){
       Handle(EditCircleShape) edshape=Handle(EditCircleShape)::DownCast(chosenInteractive);
       if(edshape){
         context->Remove(edshape,true);
+         UndoStack->push(new DeleteCommand(edshape,context,0,1));
       }
     }
   
@@ -3934,10 +4294,11 @@ void OnHandleFaceDone(){
   line->D0((double)val,refPoint);
   lineShape->SetEndPoint(refPoint);
   lineShape->SetDir(dir);
+
   DraftShapes.emplace(draftCount,lineShape);
    context->Display(lineShape,true);
    ++draftCount;
-
+  UndoStack->push(new UndoCreationCommand(context,lineShape));
 return;
 }
 void OnHandleDone(){
@@ -3951,10 +4312,6 @@ void OnHandleDone(){
   float ang=drawLineDialog->Angle();
   gp_Dir dir=drawLineDialog->Direction();
   float val=drawLineDialog->Length();
-  if(ang>=0.1 && ang<=0.999999999){
-    LoadMessage(tr(""),tr("Angle is not greater or equal to 1.0"));
-    return;
-  }
   if(val==0.000){
     LoadMessage(tr(""),tr("No Length is set"));
     return;
@@ -4035,6 +4392,7 @@ void OnHandleStopCircle(){
   DraftShapes.emplace(draftCount,edgeShape);
   ++draftCount;
   context->Display(edgeShape,false);
+  UndoStack->push(new UndoCreationCommand(context,edgeShape));
   view->Redraw();
   return;
 
@@ -4077,10 +4435,7 @@ void OnHandlePolygonDone(){
   float ang=drawPolygonDialog->Angle();
   gp_Dir dir=drawPolygonDialog->Direction();
   float val=drawPolygonDialog->Length();
-  if(ang>=0.1 && ang<=0.999999999){
-    LoadMessage(tr(""),tr("Angle is not greater or equal to 1.0"));
-    return;
-  }
+ 
   if(val==0.000){
     LoadMessage(tr(""),tr("No Length is set"));
     return;
@@ -4110,7 +4465,7 @@ void OnHandlePolygonDone(){
   lineShape->SetDir(dir);
   collectiveIndex.push_back(draftCount);
   DraftShapes.emplace(draftCount,lineShape);
-  
+  UndoStack->push(new UndoCreationCommand(context,lineShape));
   
   context->Display(lineShape,false);
   view->Redraw();
@@ -4155,6 +4510,7 @@ void ClosePolygon(){
   DraftShapes.emplace(draftCount,lineShape);
   context->Display(lineShape,false);
      drawPolygonDialog->SetIsClosed(true);
+  UndoStack->push(new UndoCreationCommand(context,lineShape));
      view->Redraw();
      ++draftCount;
      return;
@@ -4186,6 +4542,7 @@ void OnConvertPolygonToWire(){
   loopwire=wireMaker.Wire();
   polygonShape=new CustomAIS_Shape(wireMaker.Wire());
   context->Display(polygonShape,false);
+  UndoStack->push(new UndoCreationCommand(context,polygonShape));
   drawPolygonDialog->SetIsConvertedToWire(true);
   view->Redraw();
   return;
@@ -4214,6 +4571,7 @@ void OnConvertToFace(){
   Handle(CustomAIS_Shape) faceShape=new CustomAIS_Shape(facemaker.Face());
   
   context->Display(faceShape,false);
+  UndoStack->push(new UndoCreationCommand(context,faceShape));
   view->Redraw();
   drawPolygonDialog->SetIsConvertedToFace(true);
   return;
@@ -4263,11 +4621,6 @@ void OnHandleBezierDone(){
   float ang=drawBezierDialog->Angle();
   gp_Dir dir=drawBezierDialog->Direction();
   float val=drawBezierDialog->Length();
-
-  if(ang>=0.1 && ang<=0.999999999){
-    LoadMessage(tr(""),tr("Angle is not greater or equal to 1.0"));
-    return;
-  }
   if(val==0.000){
     LoadMessage(tr(""),tr("No Length is set"));
     return;
@@ -4341,6 +4694,7 @@ if(drawBezierDialog->GetPoints().size()<2){
   }
   bezierShape->SetShape(edgemaker.Edge());
   bezierShape->SetCurve(bezierCurve);
+  UndoStack->push(new UndoCreationCommand(context,bezierShape));
    context->Redisplay(bezierShape,true);
   return;
 }
@@ -4546,6 +4900,7 @@ void OnTrimCurve(){
     LoadMessage(tr(""),tr("Failed To Trim Curve"));
     return;
   }
+  UndoStack->push(new UndoCreationCommand(context,selShape));
   selShape->SetShape(edgemaker.Edge());
   context->Redisplay(selShape,false);
   view->Redraw();
@@ -4576,6 +4931,7 @@ void TrimByPoints(){
    LoadMessage(tr(""),tr("Failed to trim the selected edge"));
    return;
   }
+  UndoStack->push(new UndoCreationCommand(context,selShape));
   selShape->SetShape(edgeMaker.Edge());
   context->Redisplay(selShape,true);
   return;
@@ -4631,7 +4987,7 @@ void OnHandleEndOps(){
 }
 void OnApplyFilletToEdges(){
    std::unique_ptr<ChFi2d_FilletAPI> filletAPI=make_unique<ChFi2d_FilletAPI>();
-   filletAPI->Init(filletEdge,filletEdge_1,gp_Pln(LineStartPoint,gp_Dir(0.0,0.0,1.0))); //on the xoy plane
+   filletAPI->Init(filletEdge,filletEdge_1,gp_Pln(LineStartPoint,gottenDir)); //on the xoy plane
    if(filletDialog->Radius()<=0.0){
     LoadMessage(tr(""),tr("Radius is less than or equal to zero"));
     return;
@@ -4660,6 +5016,7 @@ void OnApplyFilletToEdges(){
    gp_Trsf trsf;
    trsf.SetTranslation(gp_Vec(LineStartPoint.X(),LineStartPoint.Y(),LineStartPoint.Z()));
    context->SetLocation(wireshape,TopLoc_Location(trsf));
+   UndoStack->push(new UndoCreationCommand(context,wireshape));
    context->Display(wireshape,false);
    view->Redraw();
    
@@ -4699,7 +5056,7 @@ void ApplyFilletToWire(){
     return;
   }
   std::unique_ptr<ChFi2d_FilletAPI> filletAPI=std::make_unique<ChFi2d_FilletAPI>();
-  filletAPI->Init(selWire,gp_Pln());
+  filletAPI->Init(selWire,gp_Pln(LineStartPoint,gottenDir));
   if(!filletAPI->Perform(filletDialog->Radius())){
     LoadMessage(tr(""),tr("Failed to perform fillet operation on the set of edges of the wire(loop)"));
     return;
@@ -4726,6 +5083,7 @@ void ApplyFilletToWire(){
     LoadMessage(tr(""),tr("The Selected Shape is not a wire"));
     return;
   }
+  UndoStack->push(new UndoCreationCommand(context,selShape));
   selShape->SetShape(wiremaker.Wire());
   context->Redisplay(selShape,false);
   view->Redraw();
@@ -4792,10 +5150,6 @@ void OnHandleDoneForCircleDialog(){
     LoadMessage(tr(""),tr("Failed to initialize an object of circle dialog"));
     return;
   }
- 
-    if(circleDialog->Angle()>=0.0000 && circleDialog->Angle()<=0.99999){
-        return;
-    }
     if(circleDialog->Radius()<=0.0){
         return;
     }
@@ -4820,7 +5174,7 @@ void OnHandleDoneForCircleDialog(){
      DraftShapes.emplace(draftCount,circleShape);
      ++draftCount;
       context->Display(circleShape,true);
-     
+     UndoStack->push(new UndoCreationCommand(context,circleShape));
   return;
 
 }
@@ -5156,7 +5510,7 @@ void OnHandleArcDraw(){
     return;
   }
   Handle(ArcAIS_Shape) arcshape=new ArcAIS_Shape(edgeMaker.Edge());
-  if(!arcShape){
+  if(!arcshape){
     return;
   }
   arcshape->SetColor(arcDialog->ArcColor());
@@ -5165,6 +5519,7 @@ void OnHandleArcDraw(){
   arcshape->SetCircle(arcDialog->Circle());
   context->Display(arcshape,true);
   DraftShapes.emplace(draftCount,arcshape);
+  UndoStack->push(new UndoCreationCommand(context,arcshape));
   ++draftCount;
   return;
 }
@@ -5399,6 +5754,7 @@ void OnEndBSpline(){
   DraftShapes.emplace(draftCount,drawnBsplineShape);
   ++draftCount;
   }
+  UndoStack->push(new UndoCreationCommand(context,drawnBsplineShape));
   drawnWireShape.Nullify();
   drawnBsplineShape.Nullify();
   drawBSplineByDialogAction->setChecked(false);
@@ -5498,6 +5854,7 @@ if(bsplineDialog->GetPoints().size()<=3){
   drawnBsplineShape->SetCurve(bsplinecurve.Curve());
   drawnBsplineShape->SetDir(view->Camera()->Direction());
    context->Redisplay(drawnBsplineShape,true);
+  
   return;
 }
 void AlignWithDirection(){
@@ -5774,6 +6131,40 @@ void OnHandleFirstTwoPoint(bool value){
   if(value){
     LoadMessage(tr(""),tr("Select The First Point,\n Hint: You can select the point within any Selection mode"));
     tpoint=TP_FIRST;
+    sLinePoint->setChecked(false);
+  }
+  else{
+    tpoint=TP_NULL;
+  }
+  return;
+}
+void OnHandleFirstArcPoint(bool value){
+  if(value){
+    LoadMessage(tr(""),tr("Select The First Point,\n Hint: You can select the point within any Selection mode"));
+    tpoint=TP_FIRST;
+    arcSecondPoint->setChecked(false);
+  }
+  else{
+    tpoint=TP_NULL;
+  }
+  return;
+}
+void OnHandleCircleFirstPoint(bool value){
+  if(value){
+    LoadMessage(tr(""),tr("Select The First Point,\n Hint: You can select the point within any Selection mode"));
+    tpoint=TP_FIRST;
+    circleSecondPoint->setChecked(false);
+  }
+  else{
+    tpoint=TP_NULL;
+  }
+  return;
+}
+void OnHandleTransFirstPoint(bool value){
+  if(value){
+     LoadMessage(tr(""),tr("Select The First Point,\n Hint: You can select the point within any Selection mode\n And this selected point must be part of the selected object to get a reasonable result"));
+    tpoint=TP_FIRST;
+    transEndPoint->setChecked(false);
   }
   else{
     tpoint=TP_NULL;
@@ -5784,6 +6175,18 @@ void OnHandleSecondTwoPoint(bool value){
   if(value){
     LoadMessage(tr(""),tr("Select The second Point,\n Hint: You can select the point within any Selection mode"));
     tpoint=TP_SECOND;
+    fLinePoint->setChecked(false);
+  }
+  else{
+    tpoint=TP_NULL;
+  }
+  return;
+}
+void OnHandleArcSecondPoint(bool value){
+  if(value){
+    LoadMessage(tr(""),tr("Select The second Point,\n Hint: You can select the point within any Selection mode"));
+    tpoint=TP_SECOND;
+    arcFirstPoint->setChecked(false);
   }
   else{
     tpoint=TP_NULL;
@@ -5791,6 +6194,28 @@ void OnHandleSecondTwoPoint(bool value){
   return;
 }
 
+void OnHandleTransSecondPoint(bool value){
+  if(value){
+     LoadMessage(tr(""),tr("Select The First Point,\n Hint: You can select the point within any Selection mode"));
+    tpoint=TP_SECOND;
+    transStartPoint->setChecked(false);
+  }
+  else{
+    tpoint=TP_NULL;
+  }
+  return;
+}
+void OnHandleCircleSecondPoint(bool value){
+  if(value){
+     LoadMessage(tr(""),tr("Select The First Point,\n Hint: You can select the point within any Selection mode"));
+    tpoint=TP_SECOND;
+    circleFirstPoint->setChecked(false);
+  }
+  else{
+    tpoint=TP_NULL;
+  }
+  return;
+}
 void SelectPoint(const gp_Pnt& pnt){
   switch(tpoint){
     case TP_FIRST:{
@@ -5831,6 +6256,8 @@ void OnBuildAction(){
     return;
   }
   Handle(CustomAIS_Shape) shape=new CustomAIS_Shape(edge);
+  shape->SetZLayer(Graphic3d_ZLayerId_Topmost);
+  UndoStack->push(new UndoCreationCommand(context,shape));
   context->Display(shape,true);
   return;
 }
@@ -5868,7 +6295,692 @@ void OnHandleViewAxis(){
   QString str=QString("X: ")+QString::number(dir.X())+QString("\n");
   QString str1=QString("Y: ")+QString::number(dir.Y())+QString("\n");
   QString str2=QString("Z: ")+QString::number(dir.Z())+QString("\n");
-  LoadMessage(tr("Axis Direction Info"),str+str1+str2);
+  LoadMessage(tr("Axis Info"),str+str1+str2);
+  return;
+}
+//for the edges to be connected, they must be gemoetrically continued,To make sure that they are geometrically continued,we have to make them that way(geometrically continued) manually
+//void OnHandleWireError(const BRepBuilderAPI_WireError& error,int& success){
+void OnConvertSetEdgesToWire(){
+   if(edgeselectors->Edges().empty()){
+      LoadMessage(tr(""),tr("No Selected Edges"));
+      return;
+   }
+   if(edgeselectors->Edges().size()==1){
+    LoadMessage(tr(""),tr("There is only one selected edge"));
+    return;
+   }
+   BRepBuilderAPI_MakeWire wiremaker;
+   TopoDS_Wire wireobject;
+   TopoDS_Edge currEdge;
+   for(int i=0;i<edgeselectors->Edges().size();i++){
+    currEdge=edgeselectors->Edges().at(i);
+    if(currEdge.Orientation()==TopAbs_REVERSED){
+      currEdge.Reverse();
+    }
+    wiremaker.Add(currEdge);
+   }
+   if(wiremaker.IsDone()){
+     wireobject=wiremaker.Wire();
+   }
+   else{
+    int success=0;
+    OnHandleWireError(wiremaker.Error(),success);
+    return;
+}
+ Handle(AIS_Shape) currShape=edgeselectors->edgeSelectors().at(0).GetSelectedShape();
+
+ Handle(CustomAIS_Shape) wireObjectShape=new CustomAIS_Shape(wireobject);
+ wireObjectShape->SetZLayer(Graphic3d_ZLayerId_Topmost);
+  context->SetLocation(wireObjectShape,context->Location(currShape));
+ 
+  
+ if(context->IsDisplayed(wireObjectShape)){
+   context->Redisplay(wireObjectShape,true);
+ }
+ else{
+  context->Display(wireObjectShape,true);
+ }
+ edgeselectors->Nullify();
+ return;
+}
+void OnHandleGroupSelectionForEdges(){
+  dc=DC_NULL;
+  selectEdges->setChecked(false);
+  edgeselectors->Nullify();
+  return;
+}
+void OnPositionGizmo(){
+  if(isFixed==true){
+    if(context->IsDisplayed(ObjectGizmo)){
+      ObjectGizmo->SetPosition(gp_Ax2(gottenPos,gp_Dir()));
+      context->Redisplay(ObjectGizmo,true);
+    }
+    else{
+      if(context->DisplayStatus(ObjectGizmo)==PrsMgr_DisplayStatus_Erased){
+        ObjectGizmo->SetPosition(gp_Ax2(gottenPos,gp_Dir()));
+        context->Display(ObjectGizmo,true);
+      }
+    }
+    return;
+  }
+   if(context->IsDisplayed(ObjectGizmo)){
+    
+    gp_Ax2 ax(LineStartPoint,gp_Dir());
+    gottenPos=LineStartPoint;
+     ObjectGizmo->SetPosition(ax);
+     context->Redisplay(ObjectGizmo,true);
+     return;
+   }
+   if(context->DisplayStatus(ObjectGizmo)==PrsMgr_DisplayStatus_Erased){
+    gp_Ax2 ax(LineStartPoint,gp_Dir());
+    gottenPos=LineStartPoint;
+    ObjectGizmo->SetPosition(ax);
+    context->Display(ObjectGizmo,true);
+   }
+
+   return;
+}
+void OnStartTransform(bool value){
+  if(value){
+  LoadMessage(tr(""),tr("Select the point within any selection mode\n NB: The point selected should be part of the object,and will be used as center of pivot for Transformation")); 
+  dc=DC_TRANSFORM;
+  }
+  else{
+    dc=DC_NULL;
+  }
+  return;
+}
+gp_Pnt ConvertToObjectSpace(const gp_Pnt& pnt){
+  if(ChosenShape){
+    gp_Trsf trsf=context->Location(ChosenShape).Transformation(); //get the world space transform
+    if(trsf.Form()!=gp_Identity){
+      gp_Pnt pnt_1=pnt.Transformed(trsf.Inverted());
+      return pnt_1;
+    }
+    return pnt; //return the untransformed position
+  }
+  if(curveShape){
+    gp_Trsf trsf=context->Location(curveShape).Transformation(); //get the world space transform
+    if(trsf.Form()!=gp_Identity){
+      gp_Pnt pnt_1=pnt.Transformed(trsf.Inverted());
+      return pnt_1;
+    }
+    return pnt;
+  }
+  return pnt;
+}
+//this should be used after AIS_Manipulator has transformed the object about the pivot position
+void OnHandleApplyTransform(){
+  if(ChosenShape){
+    gp_Trsf trsf=context->Location(ChosenShape).Transformation();
+    TopoDS_Shape sh=ChosenShape->Shape();
+    BRepBuilderAPI_Transform trans(sh,trsf);
+    if(trans.IsDone()){
+      ChosenShape->SetShape(trans.Shape());
+      context->SetLocation(ChosenShape,TopLoc_Location(gp_Trsf()));
+      context->Redisplay(ChosenShape,true);
+    }
+    else{
+      LoadMessage(tr("Transformation Error"),tr("Transformation Failed"));
+    }
+  }
+  else{
+    if(curveShape){
+    gp_Trsf trsf=context->Location(curveShape).Transformation();
+    TopoDS_Shape sh=curveShape->Shape();
+    BRepBuilderAPI_Transform trans(sh,trsf);
+    if(trans.IsDone()){
+      curveShape->SetShape(trans.Shape());
+      context->SetLocation(curveShape,TopLoc_Location(gp_Trsf()));
+      context->Redisplay(curveShape,true);
+    }
+    else{
+      LoadMessage(tr("Transformation Error"),tr("Transformation Failed"));
+    }
+    }
+  }
+  return;
+}
+void SetFixedState(bool value){
+  if(value){
+    isFixed=value;
+  }
+  else{
+    isFixed=value;
+  }
+  return;
+}
+void OnHandleEndTransform(){
+  dc=DC_NULL;
+  TransformAction->setChecked(false);
+  if(ChosenShape){
+    ChosenShape.Nullify();
+  }
+  if(curveShape){
+    curveShape.Nullify();
+  }
+  return;
+}
+//onMousepress,OnMouseMove and OnMouseRelease
+//per frame of draw
+//this updates both the object position and orientation
+void OnUpdateGizmoPosition(const gp_Trsf& trsf){
+  
+  gp_Pnt worldPivot=GizmoStartPosition.Transformed(trsf);
+  gp_Dir xDir=gp_Dir(1.0,0.0,0.0);
+  gp_Dir zDir=gp_Dir(0.0,0.0,1.0);
+  xDir=xDir.Transformed(trsf);
+  zDir=zDir.Transformed(trsf);
+  gp_Ax2 ax(worldPivot,zDir,xDir);
+  ObjectGizmo->SetPosition(ax);
+  context->Redisplay(ObjectGizmo,true);
+  return;
+}
+void DisplayAtPivot(){
+  if(!ObjectGizmo){
+    return;
+  }
+  if(context->IsDisplayed(ObjectGizmo)){
+    ObjectGizmo->SetPosition(gp_Ax2(gottenPos,gp_Dir()));
+    context->Redisplay(ObjectGizmo,true);
+  }
+  else{
+    if(context->DisplayStatus(ObjectGizmo)==PrsMgr_DisplayStatus_Erased){
+      ObjectGizmo->SetPosition(gp_Ax2(gottenPos,gp_Dir()));
+      context->Display(ObjectGizmo,true);
+    }
+  }
+   return;
+}
+//update both the object position and orientation
+void OnUpdateObjectPosition(){
+  
+  gp_Trsf delta=ObjectGizmo->Transformation(); //stores it's transformation 
+  gp_Trsf newTransform=delta* objectTrans;
+  if(ChosenShape){
+   context->SetLocation(ObjectGizmo->Object(),TopLoc_Location(newTransform));
+   context->Redisplay(ObjectGizmo->Object(),true);
+   OnUpdateGizmoPosition(newTransform);
+  }
+  else{
+    if(curveShape){
+      context->SetLocation(ObjectGizmo->Object(),TopLoc_Location(newTransform));
+      context->Redisplay(ObjectGizmo->Object(),true);
+      OnUpdateGizmoPosition(newTransform);
+    }
+    return;
+  }
+   
+  return;
+}
+gp_Trsf GetObjectTransform(){
+  if(ChosenShape){
+    return context->Location(ChosenShape).Transformation();
+  }
+  else{
+    if(curveShape){
+      return context->Location(curveShape).Transformation();
+    }
+  }
+  return gp_Trsf();
+}
+void RedisplayGizmo(){
+  if(context->IsDisplayed(ObjectGizmo)){
+      context->Redisplay(ObjectGizmo,true);
+    }
+    else{
+      if(context->DisplayStatus(ObjectGizmo)==PrsMgr_DisplayStatus_Erased){
+        context->Display(ObjectGizmo,true);
+      }
+    }
+  return;
+}
+void OnHandleDefaultDepth(bool value){
+  if(value){
+    if(ChosenShape){
+      topAction->setChecked(false);
+    topMostAction->setChecked(false);
+    
+      SetDepthInfo(ChosenShape,Graphic3d_ZLayerId_Default);
+    }
+    else{
+      if(!curveShape){
+        return;
+      }
+    topAction->setChecked(false);
+    topMostAction->setChecked(false);
+      SetDepthInfo(curveShape,Graphic3d_ZLayerId_Default);
+    }
+  }
+  else{
+    return;
+  }
+  return;
+}
+void OnHandleTopDepth(bool value){
+  if(value){
+    if(ChosenShape){
+     
+    topMostAction->setChecked(false);
+    defaultAction->setChecked(false);
+      SetDepthInfo(ChosenShape,Graphic3d_ZLayerId_Top);
+    }
+    else{
+      if(!curveShape){
+        return;
+      }
+       topMostAction->setChecked(false);
+    defaultAction->setChecked(false);
+      SetDepthInfo(curveShape,Graphic3d_ZLayerId_Top);
+    }
+  }
+  else{
+    return;
+  }
+  return;
+}
+
+void OnHandleTopMostDepth(bool value){
+  if(value){
+    if(ChosenShape){
+      
+    topMostAction->setChecked(false);
+    defaultAction->setChecked(false);
+      SetDepthInfo(ChosenShape,Graphic3d_ZLayerId_Topmost);
+    }
+    else{
+      if(!curveShape){
+        return;
+      }
+      topMostAction->setChecked(false);
+    defaultAction->setChecked(false);
+      SetDepthInfo(ChosenShape,Graphic3d_ZLayerId_Topmost);
+      
+    }
+  }
+  else{
+    return;
+  }
+  return;
+}
+
+void SetDepthInfo(Handle(AIS_Shape) shape,const Graphic3d_ZLayerId& zlayer){
+   shape->SetZLayer(zlayer);
+   view->Redraw();
+  return;
+}
+void GetDepthInfo(Handle(AIS_Shape) shape){
+  switch(shape->ZLayer()){
+   case Graphic3d_ZLayerId_Top:{
+    topAction->setChecked(true);
+    topMostAction->setChecked(false);
+    defaultAction->setChecked(false);
+    break;
+   }
+   case Graphic3d_ZLayerId_Topmost:{
+    topAction->setChecked(false);
+    topMostAction->setChecked(true);
+    defaultAction->setChecked(false);
+    break;
+   }
+   case Graphic3d_ZLayerId_Default:{
+    topAction->setChecked(false);
+    topMostAction->setChecked(false);
+    defaultAction->setChecked(true);
+    break;
+   }
+   default:
+    break;
+  }
+  view->Redraw();
+  return;
+}
+void OnHandleTransFixed(bool value){
+  if(value){
+    isTransFixed=value;
+  }
+  else{
+    isTransFixed=value;
+  }
+  return;
+}
+void SetTransShape(Handle(AIS_Shape) shape){
+  if(isTransFixed){
+    return;
+  }
+  myTransShape=shape;
+  return;
+}
+void ComputeTransformForHandle(bool value=false){
+  if(!myTransShape){
+   LoadMessage(tr(""),tr("No Shape is Selected"));
+   return;
+  }
+  gp_Vec vec(twoPointArray[0],twoPointArray[1]);
+  gp_Trsf trsf=context->Location(myTransShape).Transformation();
+  trsf.SetTranslationPart(vec);
+  context->SetLocation(myTransShape,TopLoc_Location(trsf));
+  view->Redraw();
+  return;
+}
+void ApplyTransToTopoDS_Shape(){
+  if(!myTransShape){
+    LoadMessage(tr(""),tr("Cannot Apply Transform because the selected object is empty"));
+    return;
+  }
+   gp_Trsf trsf=context->Location(myTransShape).Transformation();
+   BRepBuilderAPI_Transform trans(myTransShape->Shape(),trsf);
+   if(trans.IsDone()){
+    myTransShape->SetShape(trans.Shape());
+    myTransShape->SetZLayer(Graphic3d_ZLayerId_Topmost);
+    context->SetLocation(myTransShape,TopLoc_Location(gp_Trsf()));
+    UndoStack->push(new UndoCreationCommand(context,myTransShape));
+    context->Redisplay(myTransShape,true);
+   }
+  
+  return;
+}
+void OnEndTransShape(){
+  myTransShape=nullptr;
+  dc=DC_NULL;
+  transAction->setChecked(false);
+  return;
+}
+void OnStartTransShape(bool value){
+  if(value){
+  dc=DC_APPLYTRANS;
+  }
+  else{
+    dc=DC_NULL;
+  }
+  return;
+}
+//DC_TWOPNTARC
+//DC_TWOPNTCIRCLE
+void OnHandleTwoPntArc(bool value){
+  if(value){
+    dc=DC_TWOPNTARC;
+  }
+  else{
+    dc=DC_NULL;
+  }
+  return;
+}
+void OnHandleTwoPointCircle(bool value){
+  if(value){
+    dc=DC_TWOPNTCIRCLE;
+  }
+  else{
+    dc=DC_NULL;
+  }
+  return;
+}
+double GetAngleFromPoint(const gp_Pnt& pnt){
+  double ratio=pnt.Y()/pnt.X();
+  return atan(ratio); //by default atan() gives the angle in radians
+}
+gp_Pnt GetLineMidPoint(const gp_Pnt& pnt1,const gp_Pnt& pnt2){
+  double mid_x=(pnt1.X()+pnt2.X())/2.0;
+  double mid_y=(pnt1.Y()+pnt2.Y())/2.0;
+  double mid_z=(pnt1.Z()+pnt2.Z())/2.0;
+  return gp_Pnt(mid_x,mid_y,mid_z);
+}
+void OnHandleBuildArc(){
+   gp_Vec disVec(twoPointArray[0],twoPointArray[1]);
+   double diameter=disVec.Magnitude();
+   double radius=diameter/2.0;
+   float pie=3.14159265;
+   gp_Pnt midPoint=GetLineMidPoint(twoPointArray[0],twoPointArray[1]);
+   Handle(Geom_Circle) circle=new Geom_Circle(gp_Ax2(midPoint,gottenDir),radius);
+   if(!circle){
+    return;
+   }
+   try{
+   GC_MakeArcOfCircle arcmaker(circle->Circ(),twoPointArray[0],twoPointArray[1],true);
+   if(!arcmaker.Value()){
+    return;
+   }
+  BRepBuilderAPI_MakeEdge edgeMaker;
+  edgeMaker.Init(arcmaker.Value());
+  if(!edgeMaker.IsDone()){
+    return;
+  }
+  Handle(CustomAIS_Shape) arcshape=new CustomAIS_Shape(edgeMaker.Edge());
+  if(!arcshape){
+    return;
+  }
+  arcshape->SetZLayer(Graphic3d_ZLayerId_Topmost);
+  UndoStack->push(new UndoCreationCommand(context,arcshape));
+  context->Display(arcshape,true);
+}
+catch(Standard_ConstructionError error){
+  LoadMessage(tr(""),tr("Failed to construct two point arc"));
+  return;
+}
+   return;
+}
+
+void OnHandleBuildCircle(){
+  gp_Vec disVec(twoPointArray[0],twoPointArray[1]);
+   double diameter=disVec.Magnitude();
+   double radius=diameter/2.0;
+   gp_Pnt midPoint=GetLineMidPoint(twoPointArray[0],twoPointArray[1]);
+   Handle(Geom_Circle) circle=new Geom_Circle(gp_Ax2(midPoint,gottenDir),radius);
+
+   if(!circle){
+    return;
+   }
+   BRepBuilderAPI_MakeEdge edgeMaker;
+   edgeMaker.Init(circle);
+   if(!edgeMaker.IsDone()){
+    return;
+   }
+   Handle(CustomAIS_Shape) cshape=new CustomAIS_Shape(edgeMaker.Edge());
+   if(!cshape){
+    return;
+   }
+   cshape->SetZLayer(Graphic3d_ZLayerId_Topmost);
+   UndoStack->push(new UndoCreationCommand(context,cshape));
+   context->Display(cshape,true);
+  return;
+}
+void OnEndBuildCircle(){
+  dc=DC_NULL;
+  circleFirstPoint->setChecked(false);
+  circleSecondPoint->setChecked(false);
+  twoPntCircleAction->setChecked(false);
+  return;
+}
+void OnHandleEndBuildArc(){
+  dc=DC_NULL;
+  twoPntArcAction->setChecked(false);
+  arcFirstPoint->setChecked(false);
+  arcSecondPoint->setChecked(false);
+  return; 
+}
+void OnHandleConvertToPrimCircle(bool value){
+  if(value){
+    gp_Vec disVec(twoPointArray[0],twoPointArray[1]);
+    double diameter=disVec.Magnitude();
+    double radius=diameter/2.0;
+     gp_Pnt midPoint=GetLineMidPoint(twoPointArray[0],twoPointArray[1]);
+     emit EmitCircleValue(gp_Ax2(midPoint,gp_Dir()),radius);
+
+ }
+ else{
+ emit OnEmitFaceBool(value);
+ }
+ return;
+}
+void OnStartChooseAxis(bool value){
+  if(value){
+    cm=CE_CHAXIS;
+  }
+  else{
+    cm=CE_NULL;
+  }
+  return;
+}
+void OnHandleSelectedFace(bool value){
+  if(value){
+   prevMode=CurrentSelMode;
+   context->Deactivate();
+   context->Activate(4);
+   CurrentSelMode=4;
+
+  }
+  else{
+  CurrentSelMode=prevMode;
+  context->Deactivate();
+   context->Activate(prevMode);
+  }
+  return;
+}
+void SetFaceFixed(const TopoDS_Face& face){
+  if(isFaceFixed==true){
+    return;
+  }
+  ChosenAxisFace=face;
+  return;
+}
+
+
+void OnHandleSetFixedFace(bool value){
+  if(value){
+    isFaceFixed=value;
+  }
+  else{
+    isFaceFixed=value;
+  }
+  return;
+}
+void OnChooseDefaultX(bool value){
+   if(value){
+    gottenDir=gp_Dir(1.0,0.0,0.0);
+    defaultY->setChecked(false);
+    defaultZ->setChecked(false);
+   }
+   else{
+    return;
+   }
+   return;
+}
+void OnChooseDefaultY(bool value){
+   if(value){
+    gottenDir=gp_Dir(0.0,1.0,0.0);
+    defaultX->setChecked(false);
+    defaultZ->setChecked(false);
+   }
+   else{
+    return;
+   }
+   return;
+}
+void OnChooseDefaultZ(bool value){
+   if(value){
+    gottenDir=gp_Dir(0.0,0.0,1.0);
+    defaultX->setChecked(false);
+    defaultY->setChecked(false);
+   }
+   else{
+    return;
+   }
+   return;
+}
+void OnComputeSurfaceNormal(){
+  if(ChosenAxisFace.IsNull()){
+    return;
+  }
+  gottenDir=SURFACE::GetFaceNormal(ChosenAxisFace,selFacePoint);
+
+  return;
+}
+//endChooseAxis
+void EndChooseAxis(){
+ cm=CE_NULL;
+ chooseFace->setChecked(false);
+ defaultX->setChecked(false);
+ chooseAxis->setChecked(false);
+ defaultY->setChecked(false);
+ defaultZ->setChecked(false);
+  return;
+}
+void EndEdgeMenu(){
+  st1=NULL_SELECT;
+  edgeMenu->filletAction->setChecked(false);
+  edgeMenu->convertToWireAction->setChecked(false);
+  edgeMenu->convertAction->setChecked(false);
+  edgeMenu->convertToFaceAction->setChecked(false);
+  edgeMenu->trimAction->setChecked(false);
+  edgeMenu->convertToPointNode->setChecked(false);
+  dc=DC_NULL;
+  cm=CE_NULL;
+  return;
+}
+void EndFaceMenu(){
+  st1=NULL_SELECT;
+  faceMenu->convertAction->setChecked(false);
+  faceMenu->applyFillet->setChecked(false);
+  faceMenu->applyChamfer->setChecked(false);
+  faceMenu->convertToPointNode->setChecked(false);
+  dc=DC_NULL;
+  cm=CE_NULL;
+  return;
+}
+void EndWireMenu(){
+  st1=NULL_SELECT;
+  wireMenu->convertToNode->setChecked(false);
+  wireMenu->applyFillet->setChecked(false);
+  wireMenu->applyFilletToAll->setChecked(false);
+  wireMenu->chooseVertex->setChecked(false);
+  wireMenu->convertToPointNode->setChecked(false);
+  dc=DC_NULL;
+  cm=CE_NULL;
+  return;
+}
+
+void OnConvertToEdgeColl(bool value){
+  if(value){
+  if(selWire.isNull()){
+   LoadMessage(tr(""),tr("No wire is selected"));
+   return;
+  }
+  int i=0;
+  TopExp_Explorer explorer(selWire,TopAbs_EDGE);
+  for(;explorer.More();explorer.Next()){
+    TopoDS_Edge edge=TopoDS::Edge(explorer.Current());
+    if(edge.IsNull()){
+      continue;
+    }
+    ++i;
+    DetermineEdgeType(edge);
+  }
+  if(i<=1){
+    LoadMessage(tr(""),tr("The Wire only contains one edge"));
+    return;
+  }
+  
+  emit EmitEdgeColl();
+}
+else{
+  emit OnEmitFaceBool(value);
+}
+  return;
+}
+void DetermineEdgeType(const TopoDS_Edge& edge){
+  BRepAdaptor_Curve adaptorcurve(edge);
+  switch(adaptorcurve.GetType()){
+    case GeomAbs_Line:{
+      
+      cout<<"This is a line"<<"\n";
+      break;
+    }
+    case GeomAbs_Circle:{
+      
+      cout<<"This is either an arc or a circle"<<"\n";
+      break;
+    }
+  }
   return;
 }
 };

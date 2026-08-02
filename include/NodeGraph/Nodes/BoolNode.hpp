@@ -1,6 +1,7 @@
 #pragma once 
 #include<NodeDelegateModel>
 #include<BooleanNodeData.hpp>
+#include<JsonShapeConverter.hpp>
 #include<memory>
 using namespace std;
 using namespace QtNodes;
@@ -17,6 +18,15 @@ BoolNode(){
 bool Value() const{
     return value;
 }
+QJsonObject save() const override{
+    QJsonObject object=NodeDelegateModel::save();
+    object["Value"]=value;
+    return object;
+}
+void load(const QJsonObject& object) override{
+    value=object["Value"].toBool();
+    return;
+}
 void SetValue(const bool& val){
   value=val;
   if(outputData){
@@ -28,6 +38,14 @@ void SetValue(const bool& val){
   }
   emit dataUpdated(0); 
   return;
+}
+void SetBoolData(bool ch){
+    value=ch;
+    return;
+}
+void UpdateData(){
+    emit dataUpdated(0);
+    return;
 }
 unsigned int nPorts(PortType portType) const override{
     switch(portType){
@@ -60,8 +78,10 @@ std::shared_ptr<NodeData> outData(PortIndex port) override{
    if(outputData){
      return static_pointer_cast<NodeData>(outputData);
    }
-  shared_ptr<NodeData> mptr;
-  return mptr;
+   outputData=std::make_shared<BooleanNodeData>(tr(""));
+   outputData->SetData(value);
+  
+  return static_pointer_cast<NodeData>(outputData);
 }
 void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
    return;

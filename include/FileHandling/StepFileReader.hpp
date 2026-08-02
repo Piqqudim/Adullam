@@ -6,6 +6,7 @@
 #include<BRepTools.hxx>
 #include<TopoDS_Shape.hxx>
 #include<QtCore/QString>
+#include<StlAPI_Reader.hxx>
 namespace FileReader{
 inline TopoDS_Shape GetShape(const QString& filename){
     return TopoDS_Shape();

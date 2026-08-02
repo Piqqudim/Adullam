@@ -157,9 +157,7 @@ void OnDisplay(){
     if(!context){
         return;
     }
-    if(Angle()>=0 && Angle()<=0.99){
-        return;
-    }
+    
     if(Length()==0.0){
         return;
     }

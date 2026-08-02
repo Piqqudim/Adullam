@@ -5,6 +5,7 @@
 #include<ShapeNodeData.hpp>
 #include<AxisNodeData.hpp>
 #include<FloatNodeData.hpp>
+#include<Standard_Failure.hxx>
 #include<BooleanNodeData.hpp>
 #include<InfoUtility.hpp>
 #include<NodeInitializer.hpp>
@@ -173,7 +174,13 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
     if(isPortFSet){
         draftmaker.SetDraft(isInternal);
     }
+    try{
     draftmaker.Perform(maxLength);
+    }
+    catch(const Standard_Failure& failure){
+        LoadMessage(tr(""),tr("Draft Failed"));
+        return;
+    }
     if(draftmaker.IsDone()){
         outputShape=draftmaker.Shape();
     }
@@ -212,7 +219,13 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
     if(isPortFSet){
         draftmaker.SetDraft(isInternal);
     }
+    try{
     draftmaker.Perform(maxLength);
+    }
+    catch(const Standard_Failure& failure){
+        LoadMessage(tr(""),tr("Draft Failed"));
+        return;
+    }
     if(draftmaker.IsDone()){
         outputShape=draftmaker.Shape();
     }
