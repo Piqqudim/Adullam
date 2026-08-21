@@ -8,8 +8,10 @@
 #include<JsonShapeConverter.hpp>
 #include<CurveParam.hpp>
 #include<TopExp_Explorer.hxx>
+
 using namespace std;
 using namespace QtNodes;
+using namespace JsonConverter;
 class SinglyWireVector:public NodeDelegateModel{
 private:
 std::shared_ptr<VectorDataNode<WireNodeData>> outputData;
@@ -172,18 +174,20 @@ std::vector<shared_ptr<CurveParam>> curveparams; //for storage
 std::shared_ptr<WireNodeData> wirenodedata;
 TopoDS_Wire outputWire;
 
-void StoreWire(){
-    if(outputWire.IsNull()){
-        return;
-    }
-    
-    return;
-}
+
 public:
 EdgeArrayNode(){
     return;
 }
-
+QJsonObject save() const override{
+    QJsonObject object=NodeDelegateModel::save();
+    object["Edge Array"]=ConvertWireToJson(outputWire);
+    return object;
+}
+void load(const QJsonObject& object) override{
+   outputWire=ToWire(QJsonValue(object["Edge Array"]).toArray());
+   return;
+}
 void SetEdges(const TopoDS_Wire& wire){
   outputWire=wire;
   emit dataUpdated(0);
@@ -214,7 +218,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
 
     return;
 }
-shared_ptr<NodeData> outData(portIndex port) const override{
+shared_ptr<NodeData> outData(PortIndex port)  override{
        if(!wirenodedata){
         wirenodedata=make_shared<WireNodeData>(tr(""));
         wirenodedata->SetData(outputWire);

@@ -21,7 +21,14 @@ std::unique_ptr<QAction> update=std::make_unique<QAction>(tr("Update With Transf
 std::unique_ptr<QAction> alignWithDir=std::make_unique<QAction>(tr("Align With Direction"));
 std::unique_ptr<QAction> convertwireAction=std::make_unique<QAction>(tr("Convert To Wire"));
 std::unique_ptr<QAction> endEdgeMenu=std::make_unique<QAction>(tr("End"));
+std::unique_ptr<QAction> edgeMidPointAction=std::make_unique<QAction>(tr("Compute MidPoint"));
+std::unique_ptr<QAction> edgeEndPointAction=std::make_unique<QAction>(tr("Compute End Points"));
+std::unique_ptr<QAction> selectEdge=std::make_unique<QAction>(tr("Select Edge For Trim"));
+std::unique_ptr<QAction> selectEdge1=make_unique<QAction>(tr("Select Edge For Copy"));
+std::unique_ptr<QAction> buildChosenEdge=make_unique<QAction>(tr("Build Chosen Edge"));
+std::unique_ptr<QAction> printOrient=make_unique<QAction>(tr("Orientation")); //either forward or backward
 EdgeMenu():QMenu(){
+    
     showInfoAction=std::make_unique<QAction>(tr("Show Info"),nullptr);
     convertAction=std::make_unique<QAction>(tr("Convert To Edge Node"),nullptr);
     convertToFaceAction=make_unique<QAction>(tr("Convert To Face Node"),nullptr);
@@ -38,14 +45,21 @@ EdgeMenu():QMenu(){
     convertAction->setCheckable(true);
     convertToFaceAction->setCheckable(true);
     trimAction->setCheckable(true);
+    selectEdge->setCheckable(true);
+    selectEdge1->setCheckable(true);
     convertToPointNode->setCheckable(true);
     
     addAction(showInfoAction.get());
     addAction(convertAction.get());
     addAction(trimAction.get());
     addAction(convertToPointNode.get());
-    addAction(editMenuAction.get());
+    addAction(edgeMidPointAction.get());
+    addAction(edgeEndPointAction.get());
     addAction(convertToFaceAction.get());
+    addAction(selectEdge.get());
+    addAction(selectEdge1.get());
+    addAction(buildChosenEdge.get());
+    addAction(printOrient.get());
     addAction(convertToWireAction.get());
     addAction(convertwireAction.get());
     addAction(endEdgeMenu.get());
@@ -55,6 +69,28 @@ EdgeMenu():QMenu(){
 }
 
 
+};
+class TrimSelectedEdgeMenu:public QMenu{
+  public:
+  unique_ptr<QAction> chooseEdge=make_unique<QAction>(tr("Choose Edge"));
+  std::unique_ptr<QAction> chooseFirstPoint;
+  std::unique_ptr<QAction> chooseSecondPoint;
+  std::unique_ptr<QAction> buildSelectedEdge=make_unique<QAction>(tr("Build Selected Edge"));
+  std::unique_ptr<QAction> endTrim;
+  TrimSelectedEdgeMenu(){
+    chooseEdge->setCheckable(true);
+    chooseFirstPoint=make_unique<QAction>(tr("Choose First Point"));
+    chooseFirstPoint->setCheckable(true);
+    chooseSecondPoint=make_unique<QAction>(tr("Choose Second Point"));
+    chooseSecondPoint->setCheckable(true);
+    endTrim=make_unique<QAction>(tr("End Trim"));
+    addAction(chooseEdge.get());
+    addAction(chooseFirstPoint.get());
+    addAction(chooseSecondPoint.get());
+    addAction(buildSelectedEdge.get());
+    addAction(endTrim.get());
+
+  }
 };
 
 class PointMenu:public QMenu{

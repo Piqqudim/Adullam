@@ -3,8 +3,10 @@
 #include<NodeDelegateModel>
 #include<EdgeNodeData.hpp>
 #include<iostream>
+#include<JsonShapeConverter.hpp>
 using namespace QtNodes;
 using namespace std;
+using namespace JsonConverter;
 class SinglyEdgeNode:public NodeDelegateModel,public NodeInitializer{
 private:
 std::shared_ptr<EdgeNodeData> output_data;
@@ -14,6 +16,19 @@ int Index=-1;
 public:
 SinglyEdgeNode(){
 
+}
+QJsonObject save() const override{
+    QJsonObject object=NodeDelegateModel::save();
+    object["Edge"]=ConvertToString(inputValue);
+    object["Parent Index"]=ParentIndex;
+    object["Index"]=Index;
+    return object;
+}
+void load(const QJsonObject& object) override{
+    inputValue=TopoDS::Edge(ToShape(object["Edge"].toString()));
+    ParentIndex=object["Parent Index"].toInt();
+    Index=object["Index"].toInt();
+    return;
 }
 void SetEdge(const TopoDS_Edge& edge){
      inputValue=edge;

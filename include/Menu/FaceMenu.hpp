@@ -27,7 +27,7 @@ FaceMenu():QMenu(){
     computeFacePlane=std::make_unique<QAction>(tr("Compute Face Plane"));
     convertToPointNode=std::make_unique<QAction>(tr("Convert To Point Node"));
     convertToPointNode->setCheckable(true);
-    endFaceMenu=std::make_unique<QAction>(tr("End Edge Menu"));
+    endFaceMenu=std::make_unique<QAction>(tr("End Face Menu"));
     addAction(searchAction.get());
     addAction(computeFacePlane.get());
     addAction(assumeFaceNormal.get());

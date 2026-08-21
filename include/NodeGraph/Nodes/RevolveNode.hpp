@@ -76,6 +76,7 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
         }
         
     }
+    return {tr(""),tr("")};
 }
 void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
     if(!data.get()){ //analogous to data.ptr, such that ptr is a pointer
@@ -128,9 +129,11 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         TopoDS_Shape sh=Revolve(inputShape,axis,value,Error);
         if(sh.IsSame(TopoDS_Shape())){
             LoadMessage(tr("Shape Error"),tr("It is an Empty Shape"));
+            LoadMessage(tr("Shape Output"),Error);
             return;
+        
         }
-        LoadMessage(tr("Shape Output"),Error);
+        
         outputShape->SetData(sh);
     }
     else{
@@ -148,9 +151,10 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         TopoDS_Shape sh=Revolve(inputShape,axis,value,Error);
         if(sh.IsSame(TopoDS_Shape())){
             LoadMessage(tr("Shape Error"),tr("It is an Empty Shape"));
+            LoadMessage(tr("Shape Output"),Error);
             return;
         }
-        LoadMessage(tr("Shape Output"),Error);
+       
        outputShape->SetData(sh);
     }
     emit dataUpdated(0);
@@ -163,11 +167,12 @@ std::shared_ptr<NodeData> outData(PortIndex port) override{
   TopoDS_Shape sh=Revolve(inputShape,axis,value,Error);
     if(sh.IsSame(TopoDS_Shape())){
         LoadMessage(tr("Shape Error"),tr("It is an Empty Shape"));
+        LoadMessage(tr("Shape Output"),Error);
         std::shared_ptr<NodeData> ptr;
         return ptr;
     }
-        LoadMessage(tr("Shape Output"),Error);
-       outputShape->SetData(sh);
+       
+  outputShape->SetData(sh);
   return std::static_pointer_cast<NodeData>(outputShape);
 }
 

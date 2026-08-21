@@ -229,6 +229,14 @@ Window_Frame::Window_Frame(QWidget* parent_widget):QMainWindow(parent_widget){
    connect(FileActionMenu->openBRepFile.get(),&QAction::triggered,this,&Window_Frame::OpenBRepFile);
    connect(FileActionMenu->openSTLFile.get(),&QAction::triggered,this,&Window_Frame::openSTLFile);
    connect(centralwidget_1.get(),&DrawingCentralWidget::EmitEdgeColl,this,&Window_Frame::OnSetEdgeArrayBool);
+   connect(FileActionMenu->saveSTEPFile.get(),&QAction::triggered,this,&Window_Frame::SaveStepFile);
+   connect(nodewidget.get(),&NodeGraphWidget::EmitSubsceneJson,this,&Window_Frame::OnInspectNode);
+   connect(inspectorwidget.get(),&InspectorNodeWidget::OnSendShape,this,&Window_Frame::OnHandleInspectShape);
+   connect(editorMenu->enableChildCADView.get(),&QAction::toggled,this,&Window_Frame::ShowInspectWidget);
+   connect(editorMenu->enableChildNodeGraph.get(),&QAction::toggled,this,&Window_Frame::ShowInspectNodeWidget);
+   connect(FileActionMenu->saveIGESModel.get(),&QAction::triggered,this,&Window_Frame::SaveIGESFile);
+   connect(FileActionMenu->saveSTLFile.get(),&QAction::triggered,this,&Window_Frame::SaveSTLFile);
+   connect(FileActionMenu->saveBRepFile.get(),&QAction::triggered,this,&Window_Frame::SaveBRepFile);
    return;
 
 }  

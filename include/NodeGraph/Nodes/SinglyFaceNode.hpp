@@ -2,7 +2,9 @@
 #include<NodeInitializer.hpp>
 #include<NodeDelegateModel>
 #include<FaceNodeData.hpp>
+#include<JsonShapeConverter.hpp>
 #include<iostream>
+using namespace JsonConverter;
 using namespace QtNodes;
 using namespace std;
 class SinglyFaceNode:public NodeDelegateModel,public NodeInitializer{
@@ -16,6 +18,20 @@ public:
 bool isHighlight=false;
 SinglyFaceNode(){
 
+}
+QJsonObject save() const override{
+    QJsonObject object=NodeDelegateModel::save();
+    object["Face"]=ConvertToString(inputValue);
+    object["Parent Index"]=ParentIndex;
+    object["Index"]=Index;
+    return object;
+}
+void load(const QJsonObject& object) override{
+   QString value=object["Face"].toString();
+   ParentIndex=object["Parent Index"].toInt();
+   Index=object["Index"].toInt();
+   inputValue=TopoDS::Face(ToShape(value));
+   return;
 }
 void SetFace(const TopoDS_Face& face){
      inputValue=face;

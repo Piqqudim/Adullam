@@ -61,6 +61,7 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
             }
        }
     }
+     return {tr(""),tr("")};
 }
 std::shared_ptr<NodeData> outData(PortIndex port) override{
     if(shape){

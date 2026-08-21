@@ -24,9 +24,10 @@ QJsonObject save() const override{
 }
 void load(const QJsonObject& object) override{
     outputDir=ToAxisFormat(object);
-    SetDir(outputDir);
+    
     return;
 }
+
 void SetDir(const gp_Ax2& dir){
     outputDir=dir;
     if(outputData){

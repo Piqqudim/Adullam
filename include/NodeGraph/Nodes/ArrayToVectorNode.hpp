@@ -62,6 +62,7 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
             }
         }
     }
+     return {tr(""),tr("")};
 }
 //Fill the index 0 collection of shapes first before filling the index 1 collection
 void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{

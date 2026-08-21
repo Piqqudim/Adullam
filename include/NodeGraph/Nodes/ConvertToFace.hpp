@@ -82,6 +82,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         outputShape->SetData(facemaker.Face());
      }
      else{
+        LoadMessage(tr(""),tr("Failed to convert to face"));
         return;
      }
     }
@@ -96,6 +97,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         outputShape->SetData(facemaker.Face());
      }
      else{
+        LoadMessage(tr(""),tr("Failed to construct face from wire"));
         return;
      }
      }

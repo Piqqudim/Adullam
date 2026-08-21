@@ -58,6 +58,7 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
         default:
           break;
     }
+    return {tr(""),tr("")};
 }
 std::shared_ptr<NodeData> outData(PortIndex port) override{
     if(m_outdata){

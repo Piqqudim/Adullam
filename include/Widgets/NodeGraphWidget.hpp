@@ -35,7 +35,7 @@
 #include<BoolDialog.hpp>
 #include<IntegerDialog.hpp>
 #include<StyleCollection.hpp>
-
+#include<algorithm>
 using namespace INFO;
 using namespace std;
 using namespace QtNodes;
@@ -251,7 +251,7 @@ NodeGraphWidget(QWidget* parent_widget,Handle(AIS_InteractiveContext)& context_1
   connJsonObject=conStyle.toJson();
   nodeJsonObject=nstyle.toJson();
    std::cout<<"I am in NodeGraphWidget Constructor"<<"\n";
-     selectPointAction->setCheckable(true);
+    selectPointAction->setCheckable(true);
   indexAction->setMenu(indexMenu.get());
   indexMenu->addAction(showIndex2.get());
   indexMenu->addAction(IsEmpty.get());
@@ -394,6 +394,14 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
    Registry->registerModel<AboutPointMirrorNode>(tr("Mirror"));
    Registry->registerModel<AboutAxisMirrorNode>(tr("Mirror"));
    
+   //Conversion from wire,edge and face to Shape
+   Registry->registerModel<ConvertWireToShape>(tr("Conversion"));
+   Registry->registerModel<ConvertFaceToShape>(tr("Conversion"));
+   Registry->registerModel<ConvertEdgeToShape>(tr("Conversion"));
+   //end.......
+   //Conversion from shell to solid
+   Registry->registerModel<ConvertToMakeSolid>(tr("Conversion"));
+
    graph_model=new DataFlowGraphModel(Registry);
    scene_1=std::make_shared<DataFlowGraphicsScene>(*graph_model,this);
    GraphicsView::setScene(scene_1.get());
@@ -439,6 +447,7 @@ Registry->registerModel<CommandEntryShapeNode>(tr("Command"));
   connect(changeBackgroundColor.get(),&QAction::triggered,this,&NodeGraphWidget::OnHandleBckColor);
   connect(clrdialog->ColorWidget(),&ColorCollectionWidget::GetSelectedColor,this,&NodeGraphWidget::OnSelectBckColor);
   connect(groupDelete.get(),&QAction::triggered,this,&NodeGraphWidget::OnHandleGroupDelete);
+  connect(import.get(),&QAction::triggered,this,&NodeGraphWidget::OnHandleSendToInspector);
   connect(identifyShape.get(),&QAction::triggered,this,&NodeGraphWidget::OnIdentifyShape);
   return;
 }
@@ -672,7 +681,15 @@ void LoadScene(const QJsonObject& scenejson){
     gscene->GraphModel()->load(scenejson);
      CompileAllNode();
     gscene->update();
-   
+    if(gscene->GraphModel()->Indices.empty()){
+      LoadMessage(tr(""),tr("Indices is empty"));
+      return;
+    }
+    auto max_it=std::max_element(gscene->GraphModel()->Indices.begin(),gscene->GraphModel()->Indices.end());
+   if(max_it!=gscene->GraphModel()->Indices.end()){
+    IndexCounter=*max_it;
+    ++IndexCounter;
+   }
     return;
 
 }
@@ -1618,28 +1635,7 @@ void mouseMoveEvent(QMouseEvent* event) override{
 void mouseReleaseEvent(QMouseEvent* event) override{
   GraphicsView::mouseReleaseEvent(event);
   if(event->button()==Qt::LeftButton){
-    if(dstatus==DS_DRAG){
    
-  
-    if(rubberBandRect().isNull()){
-      LoadMessage(tr(""),tr("No Object Selected"));
-       cms=CMS_DRAG;
-      return;
-    }
-    auto objectList=nodeScene()->items(mapToScene(rubberBandRect()).boundingRect());
-    if(objectList.empty()){
-      LoadMessage(tr(""),tr("No Objects Selected"));
-      cms=CMS_DRAG;
-      return;
-    }
-    for(auto& ref:objectList){
-      auto node=qgraphicsitem_cast<NodeGraphicsObject*>(ref);
-      if(node){
-        nodeIDs.emplace_back(node->nodeId());
-      }
-    }
-    cms=CMS_DRAG;
-    }
     
   }
   return;
@@ -1694,6 +1690,7 @@ void CmdIsRendered();
 void EmitParentChildIndex(const int& p,const int& c);
 void EmitFaceParentChildIndex(const int& p,const int& c);
 void EmitShapeIndexForNullify(const int& index);
+void EmitSubsceneJson(const QJsonDocument& jsondoc);
 //public slots
 public slots:
 void OnReceiveAIS_Shape(const Handle(CustomAIS_Shape)& shape){
@@ -2365,26 +2362,30 @@ void OnHandleGroupDelete(){
     LoadMessage(tr(""),tr("RubberBandDrag is not activated,Simply Press the shift modifier key to activate it"));
     return;
   }
-  if(rubberBandRect().isNull()){
-     LoadMessage(tr(""),tr("No Object Selected"));
-     return;
-  }
   auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
   if(!gscene){
     LoadMessage(tr(""),tr("Failed to cast to an object of DataFlowGraphicsScene"));
     return;
   }
-  auto objectList=gscene->items(mapToScene(rubberBandRect()).boundingRect());
-  if(objectList.empty()){
-   LoadMessage(tr(""),tr("No Objects Selected"));
-   return;
-  }
+  auto objectList=gscene->items();
+  
   //OnDeleteNode();
+  bool IsSelected=false;
   for(auto& ref:objectList){
     auto nobject=qgraphicsitem_cast<NodeGraphicsObject*>(ref);
     if(nobject){
-      OnDeleteNode(nobject->nodeId());
+      if(nobject->isSelected()){
+        IsSelected=true;
+        auto in_node=dynamic_cast<IndexNode*>(gscene->GraphModel()->Models().at(nobject->nodeId()).get());
+        if(in_node){
+        IndexerIndices.push_back(nobject->nodeId());
+        }
+        OnDeleteNode(nobject->nodeId());
+      }
     }
+  }
+  if(IsSelected==false){
+    LoadMessage(tr(""),tr("No Currently Selected Object(s)"));
   }
   return;
 }
@@ -2435,7 +2436,74 @@ void DetermineShapeType(const TopAbs_ShapeEnum& shtype){
   }
   return;
 }
+void OnHandleSendToInspector(){
+   if(dragMode()!=QGraphicsView::RubberBandDrag){
+    LoadMessage(tr(""),tr("RubberBandDrag is not activated,Simply Press the shift modifier key to activate it"));
+    return;
+  }
+  auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
+  if(!gscene){
+    LoadMessage(tr(""),tr("Failed to cast to an object of DataFlowGraphicsScene"));
+    return;
+  }
+  auto objectList=gscene->items();
+  if(objectList.empty()){
+    LoadMessage(tr(""),tr("The Scene does not contain any object(s)"));
+   return;
+  }
+  QJsonArray nodeArray;
+  QJsonArray connArray;
+  std::vector<int> nIds;
+     vector<ConnectionId> connIds;
+  for(const auto& ref:objectList){
+    auto nodeobject=qgraphicsitem_cast<NodeGraphicsObject*>(ref);
+    if(nodeobject){
+      if(nodeobject->isSelected()){
+      nodeArray.append(gscene->GraphModel()->saveNode(nodeobject->nodeId()));
+      nIds.push_back(nodeobject->nodeId());
+      }
+    }
+  }
+     for(const auto ref:objectList){
+      auto connobject=qgraphicsitem_cast<ConnectionGraphicsObject*>(ref);
+      if(connobject){
+        if(connobject->isSelected()){
+          connIds.emplace_back(connobject->connectionId());
+      }
+      }
+    }
+    
+  
+  if(nIds.empty()){
+    LoadMessage(tr(""),tr("No Node Object(s)"));
+     return;
+  }
+  if(connIds.empty()){
+    LoadMessage(tr(""),tr("No Connection Graphics Object"));
+    return;
+  }
+  std::vector<ConnectionId> filterConns;
+  for(int i=0;i<nIds.size();i++){
+    for(auto iter=connIds.begin();iter!=connIds.end();++iter){
+      if(iter->outNodeId==nIds.at(i)){
+         filterConns.emplace_back(*iter);
+      }
+      else if(iter->inNodeId==nIds.at(i)){
+        filterConns.emplace_back(*iter);
+      }
 
+    }
+  }
+  for(const auto connId:filterConns){
+     connArray.append(QtNodes::toJson(connId));
+  }
+  QJsonObject subSceneJson;
+   subSceneJson["connections"]=connArray;
+  subSceneJson["nodes"]=nodeArray;
+  
+emit  EmitSubsceneJson(QJsonDocument(subSceneJson));
+  return;
+}
 /*void OnUpdateNodeModel(const QVariant&  value){
   auto gscene=dynamic_cast<DataFlowGraphicsScene*>(nodeScene());
   if(!gscene){

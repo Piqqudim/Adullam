@@ -4,6 +4,7 @@
 #include<MyCustomAIS_Shape.hxx>
 #include<TopAbs_ShapeEnum.hxx>
 #include<Geom_struct.hpp>
+#include<TopoDS_Compound.hxx>
 #include<TopExp_Explorer.hxx>
 #include<BRepBuilderAPI_MakeEdge.hxx>
 #include<BRepBuilderAPI_MakeWire.hxx>
@@ -26,7 +27,7 @@
 #include<Geom_BezierCurve.hxx>
 #include<Geom_BSplineCurve.hxx>
 #include<Geom_OffsetCurve.hxx>
-
+#include<vector>
 #include<gp_Trsf.hxx>
 #include<gp_Pnt.hxx>
 #include<gp_Ax2.hxx>
@@ -34,6 +35,9 @@
 #include<cmath>
 #include<CurveParam.hpp>
 #include<GC_MakeArcOfCircle.hxx>
+#include<BRep_Builder.hxx>
+#include<InfoUtility.hpp>
+using namespace INFO;
 //Shape Type
 //0 -> COMPOUND
 //1 -> COMPSOLID
@@ -46,6 +50,7 @@
 //8 -> SHAPE
 const float EPSILON=1e-9;
 const float PI=3.1428571;
+
 namespace Shape_Utility{
 
 inline void GetGeometryInfo(const Handle(AIS_Shape)& myShape,Geom_Struct& gstruct){
@@ -212,8 +217,15 @@ inline TopoDS_Edge DrawCircle(const gp_Ax2& dir,const double& radius){
    return TopoDS_Edge(); //return an empty constructor...
 }
 inline TopoDS_Shape Extrude(const TopoDS_Shape& shape,const  gp_Vec& dir){
-   return BRepPrimAPI_MakePrism(shape,dir).Shape();
-   
+   BRepPrimAPI_MakePrism prismmaker(shape,dir);
+   if(prismmaker.IsDone()){
+      return prismmaker.Shape();
+   }
+   else{
+      LoadMessage(QString(""),QString("Cannot Extrude the input shape"));
+      
+   }  
+   return TopoDS_Shape();
 }
 inline TopoDS_Shape Revolve(const TopoDS_Shape& shape,const gp_Ax2& dir,const double& ang,QString& error){
     BRepPrimAPI_MakeRevol revolvedShape(shape,dir.Axis(),ang);
@@ -234,33 +246,15 @@ inline TopoDS_Shape Revolve(const TopoDS_Shape& shape,const gp_Ax2& dir,const do
 inline TopoDS_Shape FullRevolve(const TopoDS_Shape& shape,const gp_Ax2& dir){
    return BRepPrimAPI_MakeRevol(shape,dir.Axis()).Shape();
 }
-inline TopoDS_Edge CreateCircleArc(const gp_Pnt& spoint,const gp_Pnt& epoint,const gp_Dir& c_dir,const gp_Pnt& cpoint,const double& pradius){
-   Handle(Geom_Circle) geom_circle=new Geom_Circle(gp_Ax2(cpoint,c_dir),radius);
-   if(!geom_circle){
-      return TopoDS_Edge();
+inline void ConvertShapeToCompound(TopoDS_Compound& comp,const TopoDS_Shape& shape){
+   BRep_Builder builder;
+   builder.MakeCompound(comp);
+   if(shape.IsNull()){
+      return;
    }
-   GC_MakeArcOfCircle arcmaker(geom_circle->Circ(),spoint,cpoint);
-   if(!arcmaker.Value()){
-      return TopoDS_Edge();
-   }
-   BRepBuilderAPI_MakeEdge edgemaker;
-   edgemaker.Init(arcmaker.Value());
-   if(edgemaker.IsDone()){
-      return edgemaker.Edge();
-   }
-   return TopoDS_Edge();   
-}
-inline TopoDS_Edge CreateLine(const gp_Pnt& pnt,const gp_Dir& dir,const double& length){
-   Handle(Geom_Line) geom_line=new Geom_Line(pnt,dir);
-   if(!geom_line){
-      return TopoDS_Edge();
-   }
-   BRepBuilderAPI_MakeEdge edgemaker;
-   edgemaker.Init(geom_line,0,length);
-   if(edgemaker.IsDone()){
-      return edgemaker.Edge();
-   }
-   return TopoDS_Edge();
+   builder.Add(comp,shape);
+
+   return;
 }
 }
 

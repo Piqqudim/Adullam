@@ -130,7 +130,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
   }
   if(outputShape){
     if(Shape.IsSame(TopoDS_Shape())){
-      LoadMessage(tr(""),tr("The Input Parameter Shape of Chamfer One Node is empty"));
+      LoadMessage(tr(""),tr("The Input Parameter Shape of Fillet One Node is empty"));
       return;
     }
    if(Edge.IsSame(TopoDS_Edge())){
@@ -170,11 +170,11 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
   else{
     outputShape=std::make_shared<ShapeNodeData>();
      if(Shape.IsSame(TopoDS_Shape())){
-      LoadMessage(tr(""),tr("The Input Parameter Shape of Chamfer One Node is empty"));
+      LoadMessage(tr(""),tr("The Input Parameter Shape of Fillet One Node is empty"));
       return;
     }
    if(Edge.IsSame(TopoDS_Edge())){
-    LoadMessage(tr(""),tr("The Input Edge is not  set"));
+    LoadMessage(tr(""),tr("The Input Edge is not set"));
     return;
    }
     if(portASet==false){

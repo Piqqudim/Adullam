@@ -12,17 +12,17 @@ std::unique_ptr<QAction> enableChildCADView;
 std::unique_ptr<QAction>enableChildNodeGraph;
 std::unique_ptr<QAction> enableStyleEditor;
 std::unique_ptr<QAction> enableConsoleLog;
-std::unique_ptr<QAction> themeSettings;
+ 
 
 EditorMenu():QMenu(){
     enableCADView=make_unique<QAction>(tr("CAD View"),nullptr);
     enableNodeGraph=make_unique<QAction>(tr("NodeGraph"),nullptr);
     enableFileSystem=make_unique<QAction>(tr("File System"),nullptr);
-    enableChildCADView=make_unique<QAction>(tr("Other View"),nullptr);
-    enableChildNodeGraph=make_unique<QAction>(tr("Other Node Graph"),nullptr);
+    enableChildCADView=make_unique<QAction>(tr("Show Inspector Widget"),nullptr);
+    enableChildNodeGraph=make_unique<QAction>(tr("Show Inspector Graph"),nullptr);
     enableConsoleLog=std::make_unique<QAction>(tr("Console Log"));
     enableStyleEditor=std::make_unique<QAction>(tr("Style Editor"));
-    themeSettings=std::make_unique<QAction>(tr("Theme"));
+    
     enableCADView->setCheckable(true);
     enableNodeGraph->setCheckable(true);
     enableFileSystem->setCheckable(true);
@@ -37,7 +37,7 @@ EditorMenu():QMenu(){
     addAction(enableStyleEditor.get());
     addAction(enableChildNodeGraph.get());
     addAction(enableConsoleLog.get());
-    addAction(themeSettings.get());
+  
 }
 
 };

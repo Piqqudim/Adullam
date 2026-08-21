@@ -74,7 +74,7 @@ FileMenu():QMenu(){
  addAction(openFolderAction.get());
  addAction(openAction.get());
  addAction(saveAction.get());
- addAction(autoSave.get());
+ 
  addAction(closeFolderAction.get());
  return;
 }

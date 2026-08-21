@@ -27,11 +27,14 @@ void load(const QJsonObject& object) override{
     auto x=object["X"].toDouble(1.0);
     auto y=object["Y"].toDouble(1.0);
     auto z=object["Z"].toDouble(1.0);
-    SetPoint(Point{x,y,z});
-    emit dataUpdated(0);
+    SetPointData(Point{x,y,z});
+    
     return;
 }
-
+void SetPointData(const Point& pt){
+    InputValue=pt;
+    return;
+}
 
    void SetPoint(const Point& pnt){
      InputValue=pnt;

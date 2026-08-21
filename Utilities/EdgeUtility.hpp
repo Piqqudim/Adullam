@@ -10,6 +10,15 @@
 #include<Standard_NoSuchObject.hxx>
 #include<Chfi2d_Builder.hxx>
 #include<InfoUtility.hpp>
+#include<Geom_Line.hxx>
+#include<Geom_Circle.hxx>
+#include<Geom_TrimmedCurve.hxx>
+#include<BRepBuilderAPI_MakeEdge.hxx>
+#include<GC_MakeArcOfCircle.hxx>
+#include<TopExp_Explorer.hxx>
+#include<TopoDS_Edge.hxx>
+#include<TopoDS_Wire.hxx>
+#include<TopoDS.hxx>
 using namespace INFO;
 namespace EDGE{
  inline QString GetEdgeType(const TopoDS_Edge& edge){
@@ -226,8 +235,45 @@ inline QString EdgeIsOnSurface(const TopoDS_Edge& edge){
   return;
  }
  inline gp_Pnt GetEdgeMidPoint(const TopoDS_Edge& edge){
-   
-
+   BRepAdaptor_Curve Curve(edge);
+   switch(Curve.GetType()){
+    case GeomAbs_Line:{
+      double first,last=0.0;
+      Handle(Geom_Curve) geomCurve=BRep_Tool::Curve(edge,first,last);
+      if(!geomCurve){
+        return gp_Pnt();
+      }
+      Handle(Geom_Line) line=Handle(Geom_Line)::DownCast(geomCurve);
+      if(line){
+       double midvalue=last/2.0;
+       gp_Pnt midpoint;
+       line->D0(midvalue,midpoint);
+       return midpoint;
+    }
+    }
+    case GeomAbs_Circle:{
+      double first,last=0.0;
+      Handle(Geom_Curve) geom_curve=BRep_Tool::Curve(edge,first,last);
+      if(!geom_curve){
+        return gp_Pnt();
+      }
+      Handle(Geom_Circle) circle=Handle(Geom_Circle)::DownCast(geom_curve);
+      if(circle){
+        gp_Pnt midpoint=circle->Circ().Position().Location();
+        return midpoint;
+      }
+      else{
+        Handle(Geom_TrimmedCurve) trimmedcurve=Handle(Geom_TrimmedCurve)::DownCast(geom_curve);
+        if(trimmedcurve){
+          Handle(Geom_Circle) circle=Handle(Geom_Circle)::DownCast(trimmedcurve->BasisCurve());
+          if(circle){
+            gp_Pnt pnt=circle->Circ().Position().Location();
+            return pnt;
+          }
+        }
+      }
+    }
+   }
     return gp_Pnt();
  }
 }

@@ -2,9 +2,10 @@
 #include<NodeDelegateModel>
 #include<memory>
 #include<WireNodeData.hpp>
+#include<JsonShapeConverter.hpp>
 using namespace std;
 using namespace QtNodes;
-
+using namespace JsonConverter;
 class SinglyWireNode:public NodeDelegateModel{
 private:
 TopoDS_Wire wire;
@@ -18,6 +19,15 @@ SinglyWireNode(){
 }
 TopoDS_Wire Wire() const{
     return wire;
+}
+QJsonObject save() const override{
+    QJsonObject object=NodeDelegateModel::save();
+    object["Wire"]=ConvertToString(wire);
+    return object;
+}
+void load(const QJsonObject& object) override{
+    wire=TopoDS::Wire(ToShape(object["Wire"].toString()));
+    return;
 }
 void SetWire(const TopoDS_Wire& wire_1){
   wire=wire_1;

@@ -36,7 +36,9 @@
 #include<StyleSheetEditor.hpp>
 #include<LoggerWidget.hpp>
 #include<LinePresentationWidget.hpp>
-
+#include<StepFileWriter.hpp>
+#include<InspectorNodeGraphWidget.hpp>
+#include<InspectorViewWidget.hpp>
 using namespace Shape_Utility;
 using namespace SURFACE;
 class Window_Frame:public QMainWindow{
@@ -80,6 +82,8 @@ class Window_Frame:public QMainWindow{
     std::unique_ptr<StyleSheetEditor> stylesheeteditor=make_unique<StyleSheetEditor>();
     Handle(CustomAIS_Shape) shape=new CustomAIS_Shape(DrawCube(80));
     std::unique_ptr<SurfaceInfoWidget> surface_widget=std::make_unique<SurfaceInfoWidget>();
+    unique_ptr<InspectorNodeWidget> inspectorwidget=make_unique<InspectorNodeWidget>();
+    unique_ptr<InspectorWidget> inspectviewwidget;
     SurfaceInfo sfaceinfo;
     float cubeSize=0.0f; //This variable is always set when we enabled an object DrawCubeWidget
     DrawCubeDialog* dcubedialog=nullptr;
@@ -1438,7 +1442,7 @@ void onWriteFileToPath(const QString& str){
      
       QFile file(folderPath + "/"+fname);
          nodewidget->FileName=folderPath + "/" +fname;
-      if(file.open(QIODevice::WriteOnly)){
+      if(file.open(QIODevice::Truncate|QIODevice::WriteOnly)){
         file.write(nodewidget->fileArray);
         file.close();
         fileSystemWidget->UpdateView(index);
@@ -2314,7 +2318,321 @@ void openSTLFile(){
   return;
 }
 void SaveStepFile(){
+    //we have to obtain a file in which we are going to store it,either we create a new file and save it in a folder or we choose a file in a directory to which the shapes will be written;
+  auto ret=QMessageBox::question(nullptr,tr("Saving File"),tr("Do you want to write to an existing file or you want to write to a new file \n Yes For New File \n No For Existing File"));
+  
+  if(ret==QMessageBox::Yes){
+  auto Filename=QInputDialog::getText(nullptr,tr("Create New .step/.stp file"),tr("File Name"),QLineEdit::Normal);
+  
+  if(Filename.isEmpty()){
+    Filename=tr("NewFile.step");
+  }
+  if(!Filename.endsWith(tr(".step")) || !Filename.endsWith(tr(".stp"))){
+    Filename+=tr(".step");
+  }
+  if(centralwidget_1->Shapes.empty()){
+    LoadMessage(tr(""),tr("No Shape(s) to Save"));
+    return;
+  }
+  STEPControl_Writer writer;
+  for(auto sh: centralwidget_1->Shapes){
+    writer.Transfer(sh.second->Shape(),STEPControl_AsIs);
+  }
+  QString dirName=QFileDialog::getExistingDirectory(nullptr,tr("Directory Dialog"));
+  if(dirName.isEmpty()){
+    LoadMessage(tr(""),tr("No Chosen Directory"));
+    return;
+  }
+  QString FilePath=QDir(dirName).filePath(Filename);
+  auto status=writer.Write(FilePath.toStdString().c_str());
+  if(status!=IFSelect_RetDone){
+    LoadMessage(tr(""),tr("Failed To Write to file"));
+    return;
+  }
   return;
+  }
+  else if(ret==QMessageBox::No){
+     QString Filename=QFileDialog::getSaveFileName(nullptr,tr("Saving .step file/.stp file"),tr(""),tr("CAD Files(*.step *.stp)"));
+     if(Filename.isEmpty()){
+      LoadMessage(tr(""),tr("No Chosen File"));
+      return;
+     }
+  STEPControl_Writer writer;
+  for(auto sh: centralwidget_1->Shapes){
+    writer.Transfer(sh.second->Shape(),STEPControl_AsIs);
+  }
+  auto status=writer.Write(Filename.toStdString().c_str());
+  if(status!=IFSelect_RetDone){
+    LoadMessage(tr(""),tr("Failed To Write to Chosen File"));
+    return;
+  }
+  return;
+  }
+  
+  return;
+}
+void SaveIGESFile(){
+  auto ret=QMessageBox::question(nullptr,tr("Saving File"),tr("Do you want to write to an existing file or you want to write to a new file \n Yes For New File \n No For Existing File"));
+  
+  if(ret==QMessageBox::Yes){
+  auto Filename=QInputDialog::getText(nullptr,tr("Create New .iges/.igs file"),tr("File Name"),QLineEdit::Normal);
+  
+  if(Filename.isEmpty()){
+    Filename=tr("NewFile.iges");
+  }
+  if(!Filename.endsWith(tr(".iges")) || !Filename.endsWith(tr(".igs"))){
+    Filename+=tr(".iges");
+  }
+  if(centralwidget_1->Shapes.empty()){
+    LoadMessage(tr(""),tr("No Shape(s) to Save"));
+    return;
+  }
+  IGESControl_Writer writer;
+  for(auto sh: centralwidget_1->Shapes){
+    if(!sh.second->Shape().IsNull()){
+       writer.AddShape(sh.second->Shape());
+    }
+   
+  }
+  QString dirName=QFileDialog::getExistingDirectory(nullptr,tr("Directory Dialog"));
+  if(dirName.isEmpty()){
+    LoadMessage(tr(""),tr("No Chosen Directory"));
+    return;
+  }
+  QString FilePath=QDir(dirName).filePath(Filename);
+  auto status=writer.Write(FilePath.toStdString().c_str());
+  if(!status){
+    LoadMessage(tr(""),tr("Failed To Write to file"));
+    return;
+  }
+  return;
+  }
+  else if(ret==QMessageBox::No){
+     QString Filename=QFileDialog::getSaveFileName(nullptr,tr("Saving .iges/.igs file"),tr(""),tr("CAD Files(*.iges *.igs)"));
+     if(Filename.isEmpty()){
+      LoadMessage(tr(""),tr("No Chosen File"));
+      return;
+     }
+  IGESControl_Writer writer;
+  for(auto sh: centralwidget_1->Shapes){
+    if(!sh.second->Shape().IsNull()){
+     writer.AddShape(sh.second->Shape());
+    }
+   
+  }
+  auto status=writer.Write(Filename.toStdString().c_str());
+  if(!status){
+    LoadMessage(tr(""),tr("Failed To Write to Chosen File"));
+    return;
+  }
+  return;
+  }
+  return;
+}
+void SaveSTLFile(){
+   auto ret=QMessageBox::question(nullptr,tr("Saving File"),tr("Do you want to write to an existing file or you want to write to a new file \n Yes For New File \n No For Existing File"));
+  
+  if(ret==QMessageBox::Yes){
+  auto Filename=QInputDialog::getText(nullptr,tr("Create New .stl file"),tr("File Name"),QLineEdit::Normal);
+  
+  if(Filename.isEmpty()){
+    Filename=tr("NewFile.stl");
+  }
+  if(!Filename.endsWith(tr(".stl"))){
+    Filename+=tr(".stl");
+  }
+  if(centralwidget_1->Shapes.empty()){
+    LoadMessage(tr(""),tr("No Shape(s) to Save"));
+    return;
+  }
+  if(centralwidget_1->Shapes.size()==1){
+   StlAPI_Writer writer;
+   QString dirName=QFileDialog::getExistingDirectory(nullptr,tr("Directory Dialog"));
+  if(dirName.isEmpty()){
+    LoadMessage(tr(""),tr("No Chosen Directory"));
+    return;
+  }
+  QString FilePath=QDir(dirName).filePath(Filename);
+  bool status;
+  for(auto sh:centralwidget_1->Shapes){
+   status=writer.Write(sh.second->Shape(),FilePath.toStdString().c_str());
+  }
+if(!status){
+    LoadMessage(tr(""),tr("Failed To Write to file"));
+    return;
+  }
+  }
+  else{
+   StlAPI_Writer writer;
+  TopoDS_Compound compound;
+  for(auto sh: centralwidget_1->Shapes){
+    if(!sh.second->Shape().IsNull()){
+      ConvertShapeToCompound(compound,sh.second->Shape());
+    }
+  }
+  if(compound.IsNull()){
+    LoadMessage(tr(""),tr("Cannot Compound the shapes"));
+     return;
+  }
+  QString dirName=QFileDialog::getExistingDirectory(nullptr,tr("Directory Dialog"));
+  if(dirName.isEmpty()){
+    LoadMessage(tr(""),tr("No Chosen Directory"));
+    return;
+  }
+  QString FilePath=QDir(dirName).filePath(Filename);
+  auto status=writer.Write(compound,FilePath.toStdString().c_str());
+  if(!status){
+    LoadMessage(tr(""),tr("Failed To Write to file"));
+    return;
+  }
+  
+  
+  }
+ 
+  return;
+  }
+  else if(ret==QMessageBox::No){
+     QString Filename=QFileDialog::getSaveFileName(nullptr,tr("Saving .stl file"),tr(""),tr("CAD Files(*.stl )"));
+     if(Filename.isEmpty()){
+      LoadMessage(tr(""),tr("No Chosen File"));
+      return;
+     }
+  if(centralwidget_1->Shapes.size()>1){
+  StlAPI_Writer writer;
+  
+  TopoDS_Compound compound;
+  for(auto sh: centralwidget_1->Shapes){
+    if(!sh.second->Shape().IsNull()){
+      ConvertShapeToCompound(compound,sh.second->Shape());
+    }
+  }
+  if(compound.IsNull()){
+    LoadMessage(tr(""),tr("Cannot Compound the shapes"));
+     return;
+  }
+  auto status=writer.Write(compound,Filename.toStdString().c_str());
+  if(!status){
+    LoadMessage(tr(""),tr("Failed To Write to Chosen File"));
+    return;
+  }
+  
+  }
+  else{
+  StlAPI_Writer writer;
+  bool status;
+  for(auto sh: centralwidget_1->Shapes){
+    if(!sh.second->Shape().IsNull()){
+     status=writer.Write(sh.second->Shape(),Filename.toStdString().c_str());
+    }
+  }
+ if(!status){
+    LoadMessage(tr(""),tr("Failed To Write to Chosen File"));
+    return;
+  }
+  }
+  }
+  return;
+}
+void SaveBRepFile(){
+   auto ret=QMessageBox::question(nullptr,tr("Saving File"),tr("Do you want to write to an existing file or you want to write to a new file \n Yes For New File \n No For Existing File"));
+  
+  if(ret==QMessageBox::Yes){
+  auto Filename=QInputDialog::getText(nullptr,tr("Create New .brep file"),tr("File Name"),QLineEdit::Normal);
+  
+  if(Filename.isEmpty()){
+    Filename=tr("NewFile.brep");
+  }
+  if(!Filename.endsWith(tr(".brep"))){
+    Filename+=tr(".brep");
+  }
+  if(centralwidget_1->Shapes.empty()){
+    LoadMessage(tr(""),tr("No Shape(s) to Save"));
+    return;
+  }
+  if(centralwidget_1->Shapes.size()==1){
+   QString dirName=QFileDialog::getExistingDirectory(nullptr,tr("Directory Dialog"));
+  if(dirName.isEmpty()){
+    LoadMessage(tr(""),tr("No Chosen Directory"));
+    return;
+  }
+  QString FilePath=QDir(dirName).filePath(Filename);
+  bool status;
+  for(auto sh:centralwidget_1->Shapes){
+   status=BRepTools::Write(sh.second->Shape(),FilePath.toStdString().c_str());
+  }
+if(!status){
+    LoadMessage(tr(""),tr("Failed To Write to file"));
+    return;
+  }
+  }
+  else{
+  TopoDS_Compound compound;
+  for(auto sh: centralwidget_1->Shapes){
+    if(!sh.second->Shape().IsNull()){
+      ConvertShapeToCompound(compound,sh.second->Shape());
+    }
+  }
+  if(compound.IsNull()){
+    LoadMessage(tr(""),tr("Cannot Compound the shapes"));
+     return;
+  }
+  QString dirName=QFileDialog::getExistingDirectory(nullptr,tr("Directory Dialog"));
+  if(dirName.isEmpty()){
+    LoadMessage(tr(""),tr("No Chosen Directory"));
+    return;
+  }
+  QString FilePath=QDir(dirName).filePath(Filename);
+  auto status=BRepTools::Write(compound,FilePath.toStdString().c_str());
+  if(!status){
+    LoadMessage(tr(""),tr("Failed To Write to file"));
+    return;
+  }
+  
+  
+  }
+ 
+  return;
+  }
+  else if(ret==QMessageBox::No){
+     QString Filename=QFileDialog::getSaveFileName(nullptr,tr("Saving .brep file"),tr(""),tr("CAD Files(*.brep )"));
+     if(Filename.isEmpty()){
+      LoadMessage(tr(""),tr("No Chosen File"));
+      return;
+     }
+  if(centralwidget_1->Shapes.size()>1){
+    TopoDS_Compound compound;
+  for(auto sh: centralwidget_1->Shapes){
+    if(!sh.second->Shape().IsNull()){
+      ConvertShapeToCompound(compound,sh.second->Shape());
+    }
+  }
+  if(compound.IsNull()){
+    LoadMessage(tr(""),tr("Cannot Compound the shapes"));
+     return;
+  }
+  auto status=BRepTools::Write(compound,Filename.toStdString().c_str());
+  if(!status){
+    LoadMessage(tr(""),tr("Failed To Write to Chosen File"));
+    return;
+  }
+  
+  }
+  else{
+  
+  bool status;
+  for(auto sh: centralwidget_1->Shapes){
+    if(!sh.second->Shape().IsNull()){
+     status=BRepTools::Write(sh.second->Shape(),Filename.toStdString().c_str());
+    }
+  }
+ if(!status){
+    LoadMessage(tr(""),tr("Failed To Write to Chosen File"));
+    return;
+  }
+  }
+  }
+   
+   return;
 }
 void OnActivateStyleSheet(bool value){
   if(value){
@@ -2388,6 +2706,50 @@ void OnSetEdgeArrayBool(){
   nodewidget->shapedraw=SP_EDGEARRAY;
   
   return;
+}
+void OnInspectNode(const QJsonDocument& object){
+  inspectorwidget->AppendSceneJson(object);
+  dockwidget_2->AddTab(tr("Inspector NodeGraph"),inspectorwidget.get());
+  
+  return;
+}
+void OnHandleInspectShape(const Handle(CustomAIS_Shape)& sh){
+  if(!inspectviewwidget){
+    inspectviewwidget=make_unique<InspectorWidget>(dockwidget_1->GetTabWidget());
+  }
+  inspectviewwidget->OnDisplayShape(sh);
+  dockwidget_1->AddTab(tr("Inspector View"),inspectviewwidget.get());
+  return;
+}
+void ShowInspectWidget(bool value){
+   if(value){
+    if(!inspectviewwidget){
+    inspectviewwidget=make_unique<InspectorWidget>(dockwidget_1->GetTabWidget());
+  }
+     dockwidget_1->AddTab(tr("Inspector View"),inspectviewwidget.get());
+     return;
+   }
+   else{
+    if(dockwidget_1->GetTabWidget()->indexOf(inspectviewwidget.get())!=1){
+     dockwidget_1->GetTabWidget()->removeTab(dockwidget_1->GetTabWidget()->indexOf(inspectviewwidget.get()));
+
+    }
+    
+   }
+   return;
+}
+void ShowInspectNodeWidget(bool value){
+   if(value){
+     dockwidget_2->AddTab(tr("Inspector NodeGraph"),inspectorwidget.get());
+     return;
+   }
+   else{
+    if(dockwidget_2->GetTabWidget()->indexOf(inspectorwidget.get())!=1){
+     dockwidget_2->GetTabWidget()->removeTab(dockwidget_2->GetTabWidget()->indexOf(inspectorwidget.get()));
+
+    }
+    
+   }
 }
 };
 

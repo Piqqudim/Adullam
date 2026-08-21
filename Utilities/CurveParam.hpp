@@ -101,7 +101,7 @@ ArcParam(const TopoDS_Edge& edge){
 gp_Pnt startPoint() const{
     return StartPoint;
 }
-gp_pnt endPoint() const{
+gp_Pnt endPoint() const{
     return EndPoint;
 }
 double radius() const{
@@ -127,7 +127,7 @@ void ConstructParameter(const TopoDS_Edge& edge) override{
    if(!geom_circle){
      return;
    }
-   circleCenter=geom_circle->Circ().Location()
+   circleCenter=geom_circle->Circ().Location();
    Dir=geom_circle->Circ().Axis().Direction();
    Radius=geom_circle->Radius();
    geom_circle->D0(first,StartPoint);

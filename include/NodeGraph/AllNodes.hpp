@@ -87,7 +87,9 @@
 #include<RepairWireNode.hpp>
 #include<MirrorNode.hpp>
 #include<MakeOffsetShape.hpp>
-
+#include<OutputShapeNode.hpp>
+#include<ConvertWireToShape.hpp>
+#include<ConvertToMakeSolid.hpp>
 
 
 

@@ -65,6 +65,7 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
              }
         }
     }
+     return {tr(""),tr("")};
 }
 void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
 if(!data){

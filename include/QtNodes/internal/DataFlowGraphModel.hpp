@@ -11,7 +11,7 @@
 #include <QJsonObject>
 
 #include <memory>
-
+#include<vector>
 namespace QtNodes {
 
 class NODE_EDITOR_PUBLIC DataFlowGraphModel : public AbstractGraphModel, public Serializable
@@ -24,7 +24,7 @@ public:
         QSize size;
         QPointF pos;
     };
- 
+   std::vector<int> Indices;
 
 public:
     DataFlowGraphModel(std::shared_ptr<NodeDelegateModelRegistry> registry);
@@ -52,7 +52,7 @@ public:
     bool connectionPossible(ConnectionId const connectionId) const override;
 
     void addConnection(ConnectionId const connectionId) override;
-
+    void setConnections(ConnectionId const connectionId); 
     bool nodeExists(NodeId const nodeId) const override;
 
     QVariant nodeData(NodeId nodeId, NodeRole role) const override;

@@ -14,6 +14,8 @@
 #include<gp_Ax2.hxx>
 #include<EdgeUtility.hpp>
 #include<TopoDS_Wire.hxx>
+#include<TopoDS.hxx>
+#include<BRepBuilderAPI_MakeWire.hxx>
 using namespace std;
 using namespace INFO;
 //we will working with objects of QByte Array
@@ -171,17 +173,18 @@ inline gp_Pnt ToPoint(const QJsonObject& object){
    return pnt;
 }
 inline QJsonObject ToLineParam(const Handle(Geom_Line)& geom_line,const double& length){
-    gp_Dir dir=geom_line->Location().Direction();
-    gp_Pnt pos=geom_line->Location().Position();
+    gp_Dir dir=geom_line->Position().Direction();
+    gp_Pnt pos=geom_line->Position().Location();
     QJsonObject object;
     object["Direction"]=ToDirFormat(dir);
     object["Position"]=ToPntJson(pos);
     object["Length"]=length;
+    object["Type"]=QString("Line");
     return object;
     
 }
 inline TopoDS_Edge ToLineEdge(const QJsonObject& object){
-    gp_Pnt pos=ToPnt(object["Position"].toObject());
+    gp_Pnt pos=ToPoint(object["Position"].toObject());
     gp_Dir dir=ToDir(object["Direction"].toObject());
     double len=object["Length"].toDouble();
     Handle(Geom_Line) geom_line=new Geom_Line(pos,dir);
@@ -198,12 +201,13 @@ inline TopoDS_Edge ToLineEdge(const QJsonObject& object){
 
 inline QJsonObject ToCircleJson(const Handle(Geom_Circle)& circle){
    QJsonObject object;
-   object["Axis"]=ToAxisJsonObject(gp_Ax2(circle->Circ().Position().Location(),circle->Circ().Position().Direction()));
+   object["Axis"]=ToAxisJsonFormat(gp_Ax2(circle->Circ().Position().Location(),circle->Circ().Position().Direction()));
    object["Radius"]=circle->Radius();
+   object["Type"]=QString("Circle");
    return object;
 }
 inline TopoDS_Edge ToCircle(const QJsonObject& object){
-   gp_Ax2 ax2=ToAxisFormat(object["Axis"].toObject());
+   gp_Ax2 ax2=ToAxisFormat(QJsonValue(object["Axis"]).toObject());
    double radius=object["Radius"].toDouble();
    Handle(Geom_Circle) circle=new Geom_Circle(ax2,radius);
    if(!circle){
@@ -221,23 +225,25 @@ inline QJsonObject ToCircularArcJson(const Handle(Geom_Circle)& arccircle,const 
    object["Circle"]=ToCircleJson(arccircle);
    object["first_param"]=firstparam;
    object["second_param"]=secondparam;
+   object["Type"]=QString("Arc");
    return object;
 }
 inline TopoDS_Edge ToArc(const QJsonObject& object){
-   QJsonObject circleObj=object["Circle"].toObject();
-   gp_Ax2 axis=ToAxisFormat(circleObj["Axis"].toObject());
+   QJsonObject circleObj=QJsonValue(object["Circle"]).toObject();
+   gp_Ax2 axis=ToAxisFormat(QJsonValue(circleObj["Axis"]).toObject());
    double radius=circleObj["Radius"].toDouble();
    double firstparam=circleObj["first_param"].toDouble();
    double secondparam=circleObj["second_param"].toDouble();
 
-   Handle(Geom_Circle) geom_circle=new Geom__Circle(axis,radius);
+   Handle(Geom_Circle) geom_circle=new Geom_Circle(axis,radius);
    if(!geom_circle){
       return TopoDS_Edge();
    }
-   gp_Pnt firstpoint=geom_circle->D0(firstparam);
-   gp_Pnt secondpoint=geom_circle->D0(secondparam);
+   gp_Pnt firstpoint,secondpoint;
+   geom_circle->D0(firstparam,firstpoint);
+   geom_circle->D0(secondparam,secondpoint);
    
-   GC_MakeArcOfCircle arcmaker(geom_circle->Circ().firstpoint,secondpoint);
+   GC_MakeArcOfCircle arcmaker(geom_circle->Circ(),firstpoint,secondpoint,true);
    if(!arcmaker.Value()){
       return TopoDS_Edge();
    }
@@ -250,17 +256,71 @@ inline TopoDS_Edge ToArc(const QJsonObject& object){
 
 }
 inline QJsonArray ConvertWireToJson(const TopoDS_Wire& wire){
+   QJsonArray jsonarray;
    TopExp_Explorer explorer(wire,TopAbs_EDGE);
     for(;explorer.More();explorer.Next()){
         BRepAdaptor_Curve curveAdaptor(TopoDS::Edge(explorer.Current()));
         switch(curveAdaptor.GetType()){
          case GeomAbs_Line:{
-
+         double first,last=0.0;
+         Handle(Geom_Curve) curve=BRep_Tool::Curve(TopoDS::Edge(explorer.Current()),first,last);
+         if(curve){
+            Handle(Geom_Line) geom_line=Handle(Geom_Line)::DownCast(curve);
+            if(geom_line){
+             jsonarray.append(QJsonValue(ToLineParam(geom_line,last)));
+            }
+         }
+          break;
          }
          case GeomAbs_Circle:{
-            
+            double first,second=0.0;
+            Handle(Geom_Curve) curve=BRep_Tool::Curve(TopoDS::Edge(explorer.Current()),first,second);
+            if(curve->IsKind(STANDARD_TYPE(Geom_TrimmedCurve))){
+             Handle(Geom_TrimmedCurve) trimmedcurve=Handle(Geom_TrimmedCurve)::DownCast(curve);
+             if(trimmedcurve){
+               if(trimmedcurve->BasisCurve()->IsKind(STANDARD_TYPE(Geom_Circle))){
+                  Handle(Geom_Circle) circle=Handle(Geom_Circle)::DownCast(trimmedcurve->BasisCurve());
+                  if(circle){
+                       jsonarray.append(QJsonValue(ToCircularArcJson(circle,first,second)));
+                  }
+               }
+             }
+            }
+            else if(curve->IsKind(STANDARD_TYPE(Geom_Circle))){
+            if(curve){
+               Handle(Geom_Circle) circle=Handle(Geom_Circle)::DownCast(curve);
+               if(circle){
+                  jsonarray.append(QJsonValue(ToCircularArcJson(circle,first,second)));
+
+               }
+            }
+
+            }
+            break;
          }
         }
     }
+    return jsonarray;
+}
+inline TopoDS_Wire ToWire(QJsonArray objectarray){
+   BRepBuilderAPI_MakeWire wiremaker;
+   for(auto geomJson:objectarray){
+       QJsonObject geomobject=geomJson.toObject();
+       QString val=geomobject["Type"].toString();
+       if(val==QString("Line")){
+         TopoDS_Edge edge=ToLineEdge(geomobject);
+         edge.Orientation(TopAbs_FORWARD);
+         wiremaker.Add(edge);
+       }
+       else if(val==QString("Arc")){
+         TopoDS_Edge edge=ToArc(geomobject);
+         edge.Orientation(TopAbs_FORWARD);
+          wiremaker.Add(edge);
+       }
+   }
+   if(wiremaker.IsDone()){
+      return wiremaker.Wire();
+   }
+   return TopoDS_Wire();
 }
 }

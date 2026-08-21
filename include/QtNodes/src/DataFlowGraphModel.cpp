@@ -206,7 +206,13 @@ void DataFlowGraphModel::addConnection(ConnectionId const connectionId)
                 portDataToPropagate,
                 PortRole::Data);
 }
+void DataFlowGraphModel::setConnections(ConnectionId const connectionId){
+    
+    _connectivity.insert(connectionId);
 
+    sendConnectionCreation(connectionId);
+  return;
+}
 void DataFlowGraphModel::sendConnectionCreation(ConnectionId const connectionId)
 {
     Q_EMIT connectionCreated(connectionId);
@@ -577,9 +583,15 @@ void DataFlowGraphModel::loadNode(QJsonObject const &nodeJson)
 
 void DataFlowGraphModel::load(QJsonObject const &jsonDocument)
 {
+   if(!Indices.empty()){
+     Indices.clear();
+   }
     QJsonArray nodesJsonArray = jsonDocument["nodes"].toArray();
-
+    
     for (QJsonValueRef nodeJson : nodesJsonArray) {
+     if(nodeJson.toObject()["model-name"].toString()==tr("Indexer")){
+        Indices.push_back(nodeJson.toObject()["Indexer_ID"].toInt());
+     }
         loadNode(nodeJson.toObject());
     }
 
@@ -590,8 +602,7 @@ void DataFlowGraphModel::load(QJsonObject const &jsonDocument)
 
         ConnectionId connId = fromJson(connJson);
 
-        // Restore the connection
-        addConnection(connId);
+      setConnections(connId); //don't propagate and restore connections
     }
 }
 

@@ -36,12 +36,12 @@ NodeDataType dataType(PortType portType,PortIndex portIndex) const override{
         case PortType::Out:{
             switch(portIndex){
                 case 0:
-                  return AxisNodeData(QString("output ")).type();
+                  return AxisNodeData(QString("output")).type();
             }
         }
         }
         
-    
+      return {tr(""),tr("")};
 }
 void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
  return;

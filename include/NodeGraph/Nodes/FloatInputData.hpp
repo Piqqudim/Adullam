@@ -40,7 +40,7 @@ void load(const QJsonObject& object) override{
     }
     
  double_edit->SetText(InputValue); 
- emit dataUpdated(0);
+
      return;
 }
 float GetData() const{

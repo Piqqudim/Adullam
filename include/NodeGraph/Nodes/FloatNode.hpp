@@ -85,7 +85,7 @@ std::shared_ptr<NodeData> outData(PortIndex port) override{
     }
     outputData=std::make_shared<FloatNodeData>(tr(""));
     outputData->SetData(Data);
-    return static_pointer_cast<FloatNodeData>(outputData);
+    return static_pointer_cast<NodeData>(outputData);
 }
 void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
    return;

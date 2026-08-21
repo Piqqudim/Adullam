@@ -3,10 +3,11 @@
 #include<NodeDelegateModel>
 #include<TransformNodeData.hpp>
 
-
+#include<JsonShapeConverter.hpp>
 #include<memory>
 using namespace std;
 using namespace QtNodes;
+using namespace JsonConverter;
 class SinglyTransformNode:public NodeDelegateModel,public NodeInitializer{
 private:
 gp_Trsf InputValue;
@@ -19,6 +20,29 @@ void SetTransformData(const gp_Trsf& transform){
     InputValue=transform;
     emit dataUpdated(0);
     return;
+}
+void SetTransform(const gp_Trsf& trans){
+    InputValue=trans;
+    return;    
+}
+QJsonObject save() const override{
+    QJsonObject object=NodeDelegateModel::save();
+    QJsonArray transArray;
+    transArray.append(ToJsonTranslate(InputValue.TranslationPart()));
+    transArray.append(ToJsonQuaternion(InputValue.GetRotation()));
+    QJsonObject sFactor;
+    sFactor["Scale Factor"]=InputValue.ScaleFactor();
+    transArray.append(sFactor);
+    object["Transform"]=transArray;
+    return object;
+}
+void load(const QJsonObject& object) override{
+    QJsonArray transArray=object["Transform"].toArray();
+    InputValue.SetTranslationPart(ToVector(transArray.at(0).toObject()));
+    InputValue.SetRotation(ToQuat(transArray.at(1).toObject()));
+    QJsonObject sObject=transArray.at(2).toObject();
+    InputValue.SetScaleFactor(sObject["Scale Factor"].toDouble());
+    
 }
  unsigned int nPorts(PortType portType) const override{
     switch(portType){

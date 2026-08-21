@@ -125,7 +125,7 @@ void setInData(std::shared_ptr<NodeData> data,PortIndex portIndex) override{
         }
         else{
             outputShape=make_shared<ShapeNodeData>(tr(""));
-             if(isPortASet==false){
+         if(isPortASet==false){
             return;
          }
          if(isPortBSet==false){
